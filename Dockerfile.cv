@@ -1,0 +1,12 @@
+FROM lab-base
+USER root
+ENV YOLO_CONFIG_DIR=/tmp/ultralytics YOLO_OFFLINE=true YOLO_AUTOINSTALL=false OMP_NUM_THREADS=2 MPLCONFIGDIR=/tmp/matplotlib
+COPY requirements-cv.txt /app/requirements-cv.txt
+# CPU wheels on amd64 and arm64; no CUDA libraries or GPU base image.
+RUN pip install --no-cache-dir -c /app/requirements-cv.txt torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r /app/requirements-cv.txt
+COPY tools/fetch_yolo.py /tools/fetch_yolo.py
+# Build-time only: weights are immutable local files at runtime.
+RUN python /tools/fetch_yolo.py --output /models/yolo26n.pt && chmod -R a+rX /models
+USER lab
+CMD ["python", "-m", "services.cv_detector.main"]

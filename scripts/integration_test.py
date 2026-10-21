@@ -69,6 +69,40 @@ def main():
         print('OBSERVED overheat ML result:',value('ml_anomaly_detected'),flush=True)
         normal()
         eventually('resolved webhook arrives',lambda:incident('MotorOverheating','resolved'))
+        if value('yolo_enabled') == 1:
+            eventually('YOLO ready with recent actual inference',lambda:value('yolo_model_ready')==1
+                and value('time() - yolo_last_inference_timestamp_seconds')<5)
+            run('person-zone')
+            eventually('person box overlaps restricted zone',lambda:value('yolo_restricted_zone_violation')==1
+                and bool(query('yolo_class_detections{class="person"} > 0')))
+            output = compose('exec','-T','cv-detector','python','-c',"""
+import json, threading
+from common.mqtt import start_client, close
+seen = threading.Event()
+def received(client, userdata, message):
+    payload = json.loads(message.payload)
+    if (payload.get('event') == 'person_in_restricted_zone'
+            and payload.get('class') == 'person'
+            and len(payload.get('bbox', [])) == 4
+            and 0 < payload.get('confidence', 0) <= 1):
+        print(json.dumps(payload), flush=True)
+        seen.set()
+client = start_client('integration-safety', received, 'factory/line1/cv/safety')
+try:
+    assert seen.wait(15), 'No real MQTT safety event'
+finally:
+    close(client)
+""", capture=True)
+            print('PASS actual MQTT safety event',output,flush=True)
+            eventually('person-zone incident arrives',lambda:incident('PersonInRestrictedZone','firing'))
+            normal()
+            eventually('person-zone clears and incident resolves',lambda:value('yolo_restricted_zone_violation')==0
+                and incident('PersonInRestrictedZone','resolved'))
+            for scene in ('object-mix','fallen-object','crowded-line'):
+                run(scene)
+                eventually(scene+' fresh inference and healthy classical CV',lambda:value('cv_anomaly_detected')==0
+                    and value('time() - yolo_last_inference_timestamp_seconds')<5)
+            normal()
         run('jam')
         eventually('jam PLC + real video + ML',lambda:value('factory_blocked_sensor')==1
             and value('factory_conveyor_speed_mps')<0.1 and value('cv_red_pixel_ratio')>0.025

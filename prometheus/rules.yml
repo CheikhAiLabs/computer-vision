@@ -56,3 +56,13 @@ groups:
         for: 20s
         labels: {severity: warning}
         annotations: {summary: 'Prometheus scrape target unavailable'}
+      - alert: YOLOModelUnavailable
+        expr: yolo_enabled == 1 and yolo_model_ready == 0
+        for: 60s
+        labels: {severity: warning}
+        annotations: {summary: 'Optional YOLO model unavailable; classical CV continues'}
+      - alert: PersonInRestrictedZone
+        expr: yolo_restricted_zone_violation == 1 and yolo_enabled == 1 and yolo_model_ready == 1 and cv_stream_up == 1 and (time() - yolo_last_inference_timestamp_seconds < 3)
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'Demonstration only: person detected overlapping restricted zone'}

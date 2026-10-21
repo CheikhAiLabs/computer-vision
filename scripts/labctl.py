@@ -7,7 +7,7 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-COMMANDS = ('normal jam overheat vibration quality-drop stopped dirty-camera dark-camera blur-camera '
+COMMANDS = ('normal object-mix person-zone fallen-object crowded-line jam overheat vibration quality-drop stopped dirty-camera dark-camera blur-camera '
             'camera-offline camera-online opcua-down opcua-up edge-ot-cut edge-ot-restore '
             'cv-ot-cut cv-ot-restore state').split()
 
@@ -63,7 +63,8 @@ def run(command):
     elif command in ("jam", "overheat", "vibration", "quality-drop", "stopped"):
         request(8081, "/scenario/" + command)
         request(8082, "/scenario/" + ("jam" if command == "jam" else "normal"))
-    elif command in ("dirty-camera", "dark-camera", "blur-camera"):
+    elif command in ("dirty-camera", "dark-camera", "blur-camera", "object-mix",
+                      "person-zone", "fallen-object", "crowded-line"):
         request(8082, "/scenario/" + command)
     elif command in ("camera-offline", "camera-online", "opcua-down", "opcua-up"):
         service = "camera-sim" if command.startswith("camera") else "opcua-sim"

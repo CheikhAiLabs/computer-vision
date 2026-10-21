@@ -8,6 +8,8 @@ from common.config import RTSP_URL
 from common.mqtt import start_client, publish, close
 from common.runtime import STOP, setup
 from services.cv_detector.vision import analyze
+from services.cv_detector.yolo import Worker, flag
+from services.cv_detector.annotated import Preview
 
 LOG = logging.getLogger(__name__)
 UP = Gauge("cv_stream_up", "Recent frame successfully decoded")
@@ -25,6 +27,11 @@ def open_capture():
 def main():
     start_http_server(9104)
     mqtt = start_client("cv-detector")
+    yolo = Worker(lambda topic, payload: publish(mqtt, topic, payload))
+    preview = Preview(enabled=flag("ENABLE_ANNOTATED_STREAM"))
+    Gauge("cv_annotated_enabled", "Annotated HTTP preview configured on").set(preview.enabled)
+    yolo.start()
+    preview.start()
     previous = None
     last_publish = 0.0
     try:
@@ -34,6 +41,8 @@ def main():
                 while not STOP.is_set():
                     ok, frame = capture.read()
                     if not ok:
+                        yolo.invalidate()
+                        preview.invalidate()
                         UP.set(0)
                         ANOMALY.set(1)
                         LOG.warning("RTSP unavailable; retrying target=%s", RTSP_URL)
@@ -41,11 +50,15 @@ def main():
                             "anomaly": True, "reasons": ["stream-unavailable"]})
                         break
                     UP.set(1)
-                    UPDATED.set(time.time())
+                    now = time.time()
+                    UPDATED.set(now)
                     values, reasons = analyze(frame)
                     for name, value in values.items():
                         METRICS[name].set(value)
                     ANOMALY.set(bool(reasons))
+                    yolo.submit(frame, now)
+                    yolo.snapshot()  # Expire results even when annotation is disabled.
+                    preview.update(frame, reasons, yolo)
                     if reasons != previous:
                         LOG.info("CV state reasons=%s metrics=%s", reasons, values)
                     if reasons != previous or time.monotonic() - last_publish >= 5:
@@ -54,6 +67,8 @@ def main():
                         last_publish = time.monotonic()
                     previous = reasons
             except Exception:
+                yolo.invalidate()
+                preview.invalidate()
                 UP.set(0)
                 ANOMALY.set(1)
                 LOG.exception("CV processing failed; reconnecting")
@@ -61,6 +76,8 @@ def main():
                 capture.release()
             STOP.wait(2)
     finally:
+        yolo.close()
+        preview.close()
         close(mqtt)
 
 

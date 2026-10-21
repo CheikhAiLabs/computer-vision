@@ -6,7 +6,8 @@ import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED = ['docker-compose.yml','Dockerfile','Makefile','.env.example','requirements.txt','LICENSE','SOURCES.md','README.md',
+REQUIRED = ['docker-compose.yml','Dockerfile.cv','requirements-cv.txt','tools/yolo_test.py','tools/fetch_yolo.py',
+    'assets/objects/bottle.png','assets/objects/person.png','assets/objects/cup.png','Dockerfile','Makefile','.env.example','requirements.txt','LICENSE','SOURCES.md','README.md',
     'mosquitto/mosquitto.conf','mediamtx/mediamtx.yml','prometheus/prometheus.yml',
     'prometheus/rules.yml','prometheus/blackbox.yml','alertmanager/alertmanager.yml',
     'loki/loki.yml','alloy/config.alloy','grafana/dashboards/computer-vision.json',

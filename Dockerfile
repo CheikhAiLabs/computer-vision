@@ -8,5 +8,6 @@ RUN useradd --create-home --uid 10001 lab && mkdir /certs && chown lab:lab /cert
 COPY common /app/common
 COPY services /app/services
 COPY tools /tools
+COPY assets /app/assets
 USER lab
 CMD ["python", "-m", "services.opcua_sim.main"]

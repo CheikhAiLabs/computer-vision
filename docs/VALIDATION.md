@@ -1,5 +1,9 @@
 # Local validation record — 2026-10-21
 
+The subsequent [YOLO upgrade validation](YOLO_VALIDATION.md) records the richer
+scene, 21 unit tests, actual offline inference and the extended runtime checks.
+The original baseline results below are preserved for reference.
+
 Executed on macOS arm64 with Docker Desktop 4.96.0, Docker Engine 29.9.1,
 Compose v5.6.0, and Python 3.12 in the application image. No cloud account,
 paid API or API key was used. The first build downloaded public open-source

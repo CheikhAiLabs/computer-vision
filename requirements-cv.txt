@@ -1,0 +1,4 @@
+# Official headless distribution: avoids installing a second OpenCV wheel.
+ultralytics-opencv-headless==8.4.183
+torch==2.9.1
+torchvision==0.24.1

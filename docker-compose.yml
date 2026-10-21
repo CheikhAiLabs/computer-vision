@@ -63,9 +63,32 @@ services:
     depends_on: [mqtt, opcua-sim]
   cv-detector:
     <<: *python
+    build:
+      context: .
+      dockerfile: Dockerfile.cv
+      additional_contexts:
+        lab-base: service:camera-sim
+    image: computer-vision-cv:local
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MQTT_HOST: mqtt
+      RTSP_URL: rtsp://mediamtx:8554/line1
+      ENABLE_YOLO: ${ENABLE_YOLO:-true}
+      YOLO_MODEL: ${YOLO_MODEL:-/models/yolo26n.pt}
+      YOLO_CONFIDENCE: ${YOLO_CONFIDENCE:-0.45}
+      YOLO_EVERY_N_FRAMES: ${YOLO_EVERY_N_FRAMES:-5}
+      YOLO_THREADS: ${YOLO_THREADS:-2}
+      YOLO_RESTRICTED_ZONE: ${YOLO_RESTRICTED_ZONE:-0.60,0.16,0.98,0.86}
+      YOLO_RESULT_TTL_SECONDS: ${YOLO_RESULT_TTL_SECONDS:-3}
+      ENABLE_ANNOTATED_STREAM: ${ENABLE_ANNOTATED_STREAM:-true}
     command: [python, -m, services.cv_detector.main]
     networks: [ot_net, cloud_net]
-    ports: ["127.0.0.1:9104:9104"]
+    ports: ["127.0.0.1:9104:9104", "127.0.0.1:8083:8083"]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8083/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     depends_on: [mqtt, mediamtx]
   ml-anomaly:
     <<: *python
