@@ -13,10 +13,17 @@ REQUIRED = ['docker-compose.yml','Dockerfile.cv','requirements-cv.txt','tools/yo
     'loki/loki.yml','alloy/config.alloy','grafana/dashboards/computer-vision.json',
     'scripts/labctl.sh','scripts/labctl.ps1','.github/workflows/ci.yml',
     'tools/opcua_browse.py','tools/opcua_secure_read.py','tools/opcua_subscribe.py',
-    'tools/mqtt_tail.py','tools/smoke_test.py']
+    'tools/mqtt_tail.py','tools/smoke_test.py',
+    'services/incident_receiver/models.py','services/incident_receiver/migrations.py',
+    'services/incident_receiver/templates/base.html','services/incident_receiver/static/portal.js',
+    'services/incident_receiver/static/openapi.js',
+    'services/incident_receiver/static/vendor/swagger-ui/swagger-ui-bundle.js',
+    'services/incident_receiver/static/vendor/swagger-ui/swagger-ui.css',
+    'services/incident_receiver/static/vendor/swagger-ui/LICENSE',
+    'scripts/incident_integration_test.py','docs/INCIDENT_VALIDATION.md']
 SERVICES = {'mqtt','opcua-sim','mediamtx','camera-sim','telemetry-bridge','cv-detector',
     'ml-anomaly','incident-receiver','prometheus','blackbox-exporter','alertmanager',
-    'loki','alloy','grafana','tools'}
+    'loki','alloy','grafana','tools','incident-db'}
 
 
 def main():
@@ -39,6 +46,9 @@ def main():
     assert compose['services']['opcua-sim']['networks'] == ['ot_net']
     for edge in ['telemetry-bridge','cv-detector']:
         assert set(compose['services'][edge]['networks']) == {'ot_net','cloud_net'}
+    assert compose['networks']['incident_net']['internal'] is True
+    assert compose['services']['incident-db']['networks'] == ['incident_net']
+    assert not compose['services']['incident-db'].get('ports')
     dashboard = json.loads((ROOT/'grafana/dashboards/computer-vision.json').read_text())
     assert dashboard['uid'] == 'industrial-computer-vision'
     assert len({p['id'] for p in dashboard['panels']}) == len(dashboard['panels'])

@@ -14,7 +14,7 @@ URLS = (
     ("Camera", "http://localhost:8888/line1/"),
     ("Grafana", "http://localhost:3000"),
     ("Alertmanager", "http://localhost:9093"),
-    ("Incident Receiver", "http://localhost:8090/alerts"),
+    ("Incident Management Portal", "http://localhost:8090/"),
 )
 
 

@@ -1,0 +1,18 @@
+{% macro badge(value) -%}
+<span class="badge {{ value|lower }}"><i aria-hidden="true"></i>{{ value|readable }}</span>
+{%- endmacro %}
+{% macro incident_table(incidents) %}
+{% if incidents %}
+<div class="table-scroll"><table><thead><tr><th>Incident / description</th><th>Severity</th><th>Status</th><th>Scope</th><th>Started · UTC</th><th>Duration</th></tr></thead>
+<tbody>{% for incident in incidents %}
+<tr><td><a class="incident-link" href="/incidents/{{ incident.id }}">{{ incident.number }}</a><a class="incident-title" href="/incidents/{{ incident.id }}">{{ incident.title }}</a><small>{{ incident.type|readable }}</small></td>
+<td>{{ badge(incident.severity) }}</td><td>{{ badge(incident.status) }}</td><td>{{ incident.site }}<small>{{ incident.line }}</small></td><td class="date">{{ incident.started_at[:19]|replace('T',' ') }}</td><td class="mono">{{ incident.duration_seconds|duration }}</td></tr>
+{% endfor %}</tbody></table></div>
+{% else %}<div class="empty-state"><span class="empty-icon">◎</span><h3>No incidents in this view</h3><p>Incidents appear from actual Alertmanager notifications.<br>Run a lab scenario such as <code>make jam</code>, then refresh.</p></div>{% endif %}
+{% endmacro %}
+{% macro distribution(title, values, total) %}
+<section class="panel distribution"><div class="panel-heading"><h2>{{ title }}</h2><span>{{ total }} total</span></div>
+{% if values %}{% for name, count in values.items() %}
+<div class="distribution-row"><div><span>{{ name|readable }}</span><strong>{{ count }}</strong></div><progress max="{{ total or 1 }}" value="{{ count }}" aria-label="{{ name }}: {{ count }}"></progress></div>
+{% endfor %}{% else %}<p class="muted">No stored incidents yet.</p>{% endif %}</section>
+{% endmacro %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}{% from 'macros.html' import incident_table, distribution %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">INCIDENT COMMAND CENTER</p><h1>Operations overview</h1><p class="subtitle">From a detected signal to a documented resolution.</p></div><a class="button secondary" href="/">↻ Refresh</a></div>
+<div class="summary-strip"><span class="connection-dot"></span><strong>Local platform</strong><span>Alertmanager triggers · MQTT & monitoring evidence · Durable history</span></div>
+<div class="kpi-grid">
+  <section class="kpi"><span>Active incidents</span><strong>{{ stats.active }}</strong><small>Open operator workflows</small></section>
+  <section class="kpi critical-kpi"><span>Critical / active</span><strong>{{ stats.critical }}</strong><small>Prioritize immediate review</small></section>
+  <section class="kpi"><span>Resolved incidents</span><strong>{{ stats.resolved }}</strong><small>Reports retained in history</small></section>
+  <section class="kpi"><span>Mean time to acknowledge</span><strong>{{ stats.mtta_seconds|duration }}</strong><small>{{ stats.acknowledged }} acknowledged incidents</small></section>
+</div>
+<div class="two-columns">
+  {{ distribution('Incidents by type',stats.by_type,stats.total) }}
+  <section class="panel response-panel"><div class="panel-heading"><h2>Response & recovery</h2><a href="/statistics">View statistics ↗</a></div><span class="metric-label">MEAN TIME TO RESOLVE</span><div class="large-metric">{{ stats.mttr_seconds|duration }}</div><p class="muted">Measured from incident detection to resolution, using persisted timestamps.</p><div class="policy-note"><strong>Recovery policy</strong><p>{% if quiet_seconds >= 0 %}Auto-resolve after all alerts recover and {{ quiet_seconds }} seconds of quiet.{% else %}Manual resolution after all source alerts recover.{% endif %}</p></div></section>
+</div>
+<section class="panel"><div class="panel-heading"><div><h2>Recent incidents</h2><p class="muted">Correlated production issues, not one ticket per alert.</p></div><a href="/history">Browse history ↗</a></div>{{ incident_table(recent) }}</section>
+{% endblock %}

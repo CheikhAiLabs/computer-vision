@@ -140,7 +140,7 @@ def prometheus_check():
     bad = [(t["labels"], t["lastError"]) for t in targets if t["health"] != "up"]
     assert not bad, bad
     for query, expected in [("bridge_opcua_connected", 1), ("cv_stream_up", 1),
-                            ("ml_model_ready", 1), ("cv_anomaly_detected", 0)]:
+                            ("ml_model_ready", 1), ("cv_anomaly_detected", 0), ("incident_database_ready", 1)]:
         result = httpx.get("http://prometheus:9090/api/v1/query", params={"query": query}, timeout=5).json()["data"]["result"]
         assert result and all(float(x["value"][1]) == expected for x in result), (query, result)
     result = httpx.get("http://prometheus:9090/api/v1/query", params={"query": "probe_success"}, timeout=5).json()["data"]["result"]
@@ -150,9 +150,30 @@ def prometheus_check():
 def grafana_check():
     response = httpx.get("http://grafana:3000/api/dashboards/uid/industrial-computer-vision", auth=("admin", "admin"), timeout=5)
     response.raise_for_status()
-    assert any(p["title"] == "YOLO / Object Detection" for p in response.json()["dashboard"]["panels"])
+    assert {'YOLO / Object Detection', 'Incident Management'} <= {p['title'] for p in response.json()['dashboard']['panels']}
+    assert any(link['url'] == 'http://localhost:8090/' for link in response.json()['dashboard']['links'])
     sources = httpx.get("http://grafana:3000/api/datasources", auth=("admin", "admin"), timeout=5).json()
     assert {"prometheus", "loki"} <= {s["uid"] for s in sources}
+
+
+def incident_check():
+    assert http_check('http://incident-receiver:8090/readyz').json()['status'] == 'ready'
+    stats = http_check('http://incident-receiver:8090/api/statistics').json()
+    assert stats['total'] == stats['active'] + stats['resolved'], stats
+    assert stats['total'] >= 0
+    data = http_check('http://incident-receiver:8090/api/incidents?limit=1').json()
+    assert data['total'] == stats['total']
+    assert http_check('http://incident-receiver:8090/alerts').json()['storage'].startswith('PostgreSQL')
+    for path in ('/', '/incidents', '/history', '/statistics'):
+        assert 'Incident Operations' in http_check('http://incident-receiver:8090'+path).text
+    if data['incidents']:
+        incident_id = data['incidents'][0]['id']
+        detail = http_check(f'http://incident-receiver:8090/api/incidents/{incident_id}').json()
+        assert detail['timeline'] and detail['alerts']
+        http_check(f'http://incident-receiver:8090/incidents/{incident_id}')
+        if detail['incident']['status'] == 'RESOLVED':
+            assert http_check(f'http://incident-receiver:8090/api/incidents/{incident_id}/report').json()['final']
+            assert '# INC-' in http_check(f'http://incident-receiver:8090/api/incidents/{incident_id}/report.md').text
 
 
 def logs_check():
@@ -182,6 +203,7 @@ def main():
     retry("Optional annotated HTTP JPEG/MJPEG decoding", annotated_check)
     retry("Prometheus targets, metrics and probes", prometheus_check)
     retry("Grafana dashboard and data sources", grafana_check)
+    retry("Persistent incident portal, API and database readiness", incident_check)
     retry("Alloy → Loki Docker logs", logs_check)
     print("All smoke checks passed", flush=True)
 

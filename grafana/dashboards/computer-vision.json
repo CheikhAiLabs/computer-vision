@@ -7,7 +7,7 @@
     "computer-vision"
   ],
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "5s",
   "timezone": "browser",
   "time": {
@@ -1434,7 +1434,7 @@
     {
       "id": 30,
       "type": "stat",
-      "title": "Active incidents",
+      "title": "Active alert occurrences",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1843,12 +1843,307 @@
         "colorMode": "value",
         "graphMode": "none"
       }
+    },
+    {
+      "id": 41,
+      "type": "row",
+      "title": "Incident Management",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 97,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 42,
+      "title": "Active incidents",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_active_total",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "title": "Stored incidents",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_total",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "title": "Resolved incidents",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_resolved_total",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "title": "Mean time to acknowledge",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_mtta_seconds and (incident_acknowledged_total > 0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "title": "Mean time to resolve",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_mttr_seconds and (incident_resolved_total > 0)",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "title": "Incident database ready",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 98,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "incident_database_ready",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open incident portal",
+          "url": "http://localhost:8090/",
+          "targetBlank": true
+        }
+      ]
     }
   ],
   "links": [
     {
-      "title": "Incident API",
-      "url": "http://localhost:8090/alerts",
+      "title": "Incident Management Portal",
+      "url": "http://localhost:8090/",
       "targetBlank": true
     },
     {

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% from 'macros.html' import incident_table %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ 'HISTORICAL RECORD' if nav == 'history' else 'CURRENT OPERATIONS' }}</p><h1>{{ title }}</h1><p class="subtitle">{{ data.total }} matching incident{{ '' if data.total == 1 else 's' }} · Source alerts and operator status are tracked separately.</p></div><a class="button secondary" href="{{ request.url }}">↻ Refresh</a></div>
+{% if nav == 'history' %}
+<form class="panel filters" method="get" action="/history">
+<label>Status<select name="status"><option value="">All statuses</option>{% for value in statuses %}<option value="{{ value }}" {{ 'selected' if filters.status == value }}>{{ value|readable }}</option>{% endfor %}</select></label>
+<label>Severity<select name="severity"><option value="">All severities</option>{% for value in severities %}<option value="{{ value }}" {{ 'selected' if filters.severity == value }}>{{ value|readable }}</option>{% endfor %}</select></label>
+<label>Incident type<select name="type"><option value="">All types</option>{% for value in types %}<option value="{{ value }}" {{ 'selected' if filters.type == value }}>{{ value|readable }}</option>{% endfor %}</select></label>
+<label>Site<input name="site" value="{{ filters.site }}" maxlength="100" placeholder="Any site"></label>
+<label>Line<input name="line" value="{{ filters.line }}" maxlength="100" placeholder="Any line"></label>
+<label>From · UTC<input type="datetime-local" name="since" value="{{ filters.since[:16] }}"></label>
+<label>Until · UTC<input type="datetime-local" name="until" value="{{ filters.until[:16] }}"></label>
+<div class="filter-actions"><button class="button" type="submit">Apply filters</button><a href="/history">Reset</a></div>
+</form>
+{% endif %}
+<section class="panel">{{ incident_table(data.incidents) }}</section>
+{% if nav == 'history' and data.total > data.limit %}
+<div class="pagination"><span>Showing {{ data.offset + 1 }}–{{ [data.offset + data.limit, data.total]|min }} of {{ data.total }}</span>{% if data.offset > 0 %}<a class="button secondary" href="{{ request.url.include_query_params(offset=[0,data.offset-data.limit]|max) }}">Previous</a>{% endif %}{% if data.offset + data.limit < data.total %}<a class="button secondary" href="{{ request.url.include_query_params(offset=data.offset+data.limit) }}">Next</a>{% endif %}</div>
+{% endif %}
+{% endblock %}

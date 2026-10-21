@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Incident Operations</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='portal.css') }}">
+  <script src="{{ url_for('static', path='portal.js') }}" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">IO</span><span>Incident<br><strong>Operations</strong></span></a>
+    <p class="nav-caption">OPERATIONS WORKSPACE</p>
+    <nav aria-label="Main navigation">
+      <a class="{{ 'selected' if nav == 'dashboard' }}" href="/"><span>01</span> Overview</a>
+      <a class="{{ 'selected' if nav == 'active' }}" href="/incidents"><span>02</span> Active incidents</a>
+      <a class="{{ 'selected' if nav == 'history' }}" href="/history"><span>03</span> Incident history</a>
+      <a class="{{ 'selected' if nav == 'statistics' }}" href="/statistics"><span>04</span> Statistics</a>
+    </nav>
+    <p class="nav-caption">CONNECTED LOCAL TOOLS</p>
+    <nav aria-label="Observability tools">
+      <a href="http://localhost:3000" target="_blank" rel="noopener">Grafana <span class="external">↗</span></a>
+      <a href="http://localhost:9090" target="_blank" rel="noopener">Prometheus <span class="external">↗</span></a>
+      <a href="http://localhost:9093" target="_blank" rel="noopener">Alertmanager <span class="external">↗</span></a>
+      <a href="http://localhost:8888/line1/" target="_blank" rel="noopener">Camera HLS <span class="external">↗</span></a>
+      <a href="http://localhost:8083/annotated.mjpg" target="_blank" rel="noopener">YOLO preview <span class="external">↗</span></a>
+    </nav>
+    <div class="sidebar-footer"><span class="connection-dot"></span> LOCAL DEMONSTRATION<br><small>Persistent history · PostgreSQL</small></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span class="breadcrumb">Factory platform <span>/</span> Incident management</span><a href="/docs">API documentation ↗</a></header>
+    <main>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="page-footer">Local operational demonstration. Runbook guidance does not replace approved industrial safety procedures. <span>Times shown in UTC · UI/API unauthenticated</span></footer>
+  </div>
+</body>
+</html>

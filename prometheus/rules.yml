@@ -66,3 +66,8 @@ groups:
         for: 5s
         labels: {severity: warning}
         annotations: {summary: 'Demonstration only: person detected overlapping restricted zone'}
+      - alert: IncidentDatabaseUnavailable
+        expr: incident_database_ready == 0
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: 'Incident storage unavailable; Alertmanager retries webhook delivery'}

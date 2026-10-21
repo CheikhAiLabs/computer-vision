@@ -1,5 +1,8 @@
 # Local validation record — 2026-10-21
 
+The subsequent [Incident Management validation](INCIDENT_VALIDATION.md) records
+persistent correlation, the local portal, PostgreSQL and incident lifecycle checks.
+
 The subsequent [YOLO upgrade validation](YOLO_VALIDATION.md) records the richer
 scene, 21 unit tests, actual offline inference and the extended runtime checks.
 The original baseline results below are preserved for reference.

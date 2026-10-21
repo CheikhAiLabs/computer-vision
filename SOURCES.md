@@ -55,3 +55,23 @@ comply with its upstream license, including corresponding-source obligations;
 it must not be represented as MIT-only. See the [upstream licensing explanation](https://www.ultralytics.com/license).
 
 `scripts/prepare_assets.py` records the offline cutout/recolor/resize recipe; it takes the three original downloaded images as explicit local arguments.
+
+## Local incident-management components
+
+| Component | Official source / documentation | License / usage |
+|---|---|---|
+| PostgreSQL 18.6 | https://www.postgresql.org/docs/18/ and https://github.com/docker-library/postgres | PostgreSQL License; official `postgres:18.6-alpine` image, internal named-volume storage |
+| SQLAlchemy 2.1.6 | https://docs.sqlalchemy.org/en/21/ and https://github.com/sqlalchemy/sqlalchemy | MIT; ORM, transactions and isolated SQLite/PostgreSQL tests |
+| Psycopg 3.3.6 | https://www.psycopg.org/psycopg3/docs/ | LGPL-3.0; local PostgreSQL driver, upstream binary distribution |
+| Jinja2 3.1.6 | https://jinja.palletsprojects.com/en/stable/ | BSD-3-Clause; local server-rendered portal with autoescaping |
+
+The incident portal's HTML, CSS, JavaScript, runbook rules and report formatting
+are original project code. It uses system fonts and no remote frontend assets,
+third-party incident SaaS or generative model. Playwright/Chrome are optional
+local development validation tools, not runtime dependencies.
+
+Swagger UI 5.34.0 is vendored only for the incident API's interactive `/docs`
+page, from https://github.com/swagger-api/swagger-ui/tree/v5.34.0/dist .
+Its Apache-2.0 license and bundled third-party notices are retained in
+`services/incident_receiver/static/vendor/swagger-ui/`. The page loads its
+specification and assets locally and disables the external Swagger validator.

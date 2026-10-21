@@ -1,0 +1,13 @@
+{% extends 'base.html' %}{% from 'macros.html' import distribution %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">HISTORICAL PERFORMANCE</p><h1>Response statistics</h1><p class="subtitle">Calculated from PostgreSQL history. Merged audit references are excluded.</p></div><a class="button secondary" href="/statistics">↻ Refresh</a></div>
+<div class="kpi-grid">
+<section class="kpi"><span>Total incidents</span><strong>{{ stats.total }}</strong><small>{{ stats.active }} active · {{ stats.resolved }} resolved</small></section>
+<section class="kpi"><span>Mean time to acknowledge</span><strong>{{ stats.mtta_seconds|duration }}</strong><small>Only incidents with an actual acknowledgement</small></section>
+<section class="kpi"><span>Mean time to resolve</span><strong>{{ stats.mttr_seconds|duration }}</strong><small>Only resolved incidents</small></section>
+<section class="kpi"><span>Firing alert occurrences</span><strong>{{ stats.active_alerts }}</strong><small>Source state, independent of workflow</small></section>
+</div>
+<div class="two-columns">{{ distribution('By severity',stats.by_severity,stats.total) }}{{ distribution('By workflow status',stats.by_status,stats.total) }}</div>
+{{ distribution('By incident type',stats.by_type,stats.total) }}
+<div class="policy-note"><strong>Measurement definitions</strong><p>MTTA = acknowledged_at − detected_at. MTTR = resolved_at − detected_at. Duration starts at the earliest correlated alert's startsAt. Missing acknowledgements stay unrecorded; they are never treated as a zero-second response.</p></div>
+{% endblock %}

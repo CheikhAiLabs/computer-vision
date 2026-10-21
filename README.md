@@ -10,7 +10,7 @@
 ![Grafana](https://img.shields.io/badge/Grafana-Observability-F46800?logo=grafana&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22A559)](LICENSE)
 
-**[Overview](#overview) · [Architecture](#architecture) · [Quick start](#quick-start) · [Services / URLs](#services-and-interfaces) · [Demo](#demo) · [Scenarios](#failure-scenarios) · [Tests](#validation)**
+**[Overview](#overview) · [Architecture](#architecture) · [Quick start](#quick-start) · [Services / URLs](#services-and-interfaces) · [Demo](#demo) · [Scenarios](#failure-scenarios) · [Incidents](#incident-management) · [Tests](#validation)**
 
 ## Overview
 
@@ -35,7 +35,7 @@ Products move along a synthetic conveyor while two complementary views of the li
 - **Machine telemetry:** conveyor speed, motor temperature, vibration, production count, blocked sensor, quality score and line status.
 - **Camera observations:** bottles, cups, parcels and a person-zone demonstration, plus red jam obstruction, reduced brightness, blur, lens obstruction and stream loss.
 
-OpenCV analyzes decoded video frames while a local YOLO26n model detects semantic objects. An IsolationForest model evaluates incoming process telemetry. Prometheus evaluates alert rules, Alertmanager delivers firing and resolved notifications, and a local FastAPI receiver records their latest state. Grafana provides a provisioned view of the process, network health, anomalies, incidents and container logs.
+OpenCV analyzes decoded video frames while a local YOLO26n model detects semantic objects. An IsolationForest model evaluates incoming process telemetry. Prometheus evaluates alert rules, Alertmanager delivers firing and resolved notifications, and a local FastAPI Incident Management portal correlates notifications and persists their lifecycle, evidence and reports in PostgreSQL. Grafana provides a provisioned view of the process, network health, anomalies, incidents and container logs.
 
 ### Architecture
 
@@ -59,7 +59,8 @@ flowchart LR
     subgraph App["Application services"]
         MQTT["Mosquitto MQTT"]
         ML["IsolationForest"]
-        Incident["Incident receiver"]
+        Incident["Incident Management · FastAPI portal"]
+        DB[("PostgreSQL · incident history")]
     end
 
     subgraph Observability["Observability"]
@@ -88,12 +89,15 @@ flowchart LR
     ML -. Metrics .-> Prom
     Incident -. Metrics .-> Prom
     Prom -->|Alerts| AM
-    AM -->|Webhook| Incident
+    AM -->|Firing / resolved webhooks| Incident
+    MQTT -->|Sampled evidence · no incident trigger| Incident
+    Incident -->|Lifecycle / timeline / reports| DB
+    Incident -->|Local connectivity evidence query| Prom
     Prom -->|Metrics| Grafana
     Logs["Docker container logs"] --> Alloy --> Loki --> Grafana
 ```
 
-`opcua-sim`, `camera-sim` and `mediamtx` live on **`ot_net`**. The bridge and CV detector join both **`ot_net`** and **`cloud_net`**; backend services primarily use `cloud_net`. Prometheus, Blackbox Exporter and the optional tools container also join both networks to observe OT endpoints.
+`opcua-sim`, `camera-sim` and `mediamtx` live on **`ot_net`**. The bridge and CV detector join both **`ot_net`** and **`cloud_net`**; backend services primarily use `cloud_net`. Prometheus, Blackbox Exporter and the optional tools container also join both networks to observe OT endpoints. PostgreSQL uses the internal `incident_net`; only the incident service and optional tools container join that database network. PostgreSQL has no host port binding.
 
 This makes it possible to disconnect an edge service from OT while preserving its application connection and leaving the PLC running. Docker networks demonstrate logical segmentation; they do not replace industrial firewalls, VLANs or a plant DMZ.
 
@@ -179,14 +183,14 @@ When finished, run `./scripts/demo_screenshots.sh normal` (or the PowerShell equ
 
 ## ▶️ Demo Flow
 
-Open the [camera view](http://localhost:8888/line1/), Grafana and the [incident feed](http://localhost:8090/alerts), then run from the started stack:
+Open the [camera view](http://localhost:8888/line1/), [Grafana](http://localhost:3000) and the [Incident Portal](http://localhost:8090/), then run from the started stack:
 
 ```bash
 ./scripts/labctl.sh normal
 ./scripts/labctl.sh jam
 ```
 
-The conveyor slows, the blocked sensor activates and a red object appears in the video. CV detects the object; ML can flag the changed process telemetry. Allow roughly 40 seconds for the relevant alerts to reach the incident receiver.
+The conveyor slows, the blocked sensor activates and a red object appears in the video. OpenCV detects the obstruction and ML flags the changed process telemetry. Allow roughly 40 seconds for the related alerts to reach the portal. Open **Production Line Jam** to inspect its correlated alerts, actual evidence and timeline, then acknowledge it and start an investigation. Add root-cause/impact notes and record the actions you actually take.
 
 Restore normal operation:
 
@@ -194,11 +198,13 @@ Restore normal operation:
 ./scripts/labctl.sh normal
 ```
 
+After the source alerts recover, the incident automatically resolves following the default 30-second quiet period. Open [Incident History](http://localhost:8090/history) to inspect the retained timeline and download its final JSON or Markdown report. Manual resolution is also available after all underlying alerts recover.
+
 On Windows, use `./scripts/labctl.ps1 jam` and `./scripts/labctl.ps1 normal` in PowerShell. Both wrappers call the same Python controller.
 
 ## Services and interfaces
 
-The default stack contains **14 running services**, plus an on-demand `tools` service.
+The default stack contains **15 running services**, plus an on-demand `tools` service.
 
 | Service | Role | Local interface / published ports |
 |---|---|---|
@@ -212,7 +218,8 @@ The default stack contains **14 running services**, plus an on-demand `tools` se
 | `prometheus` | Metrics and alert evaluation | [localhost:9090](http://localhost:9090) |
 | `blackbox-exporter` | HTTP and TCP probes | [localhost:9115](http://localhost:9115) |
 | `alertmanager` | Alert grouping and webhook delivery | [localhost:9093](http://localhost:9093) |
-| `incident-receiver` | Latest firing/resolved incident states | [Alerts](http://localhost:8090/alerts) · [API docs](http://localhost:8090/docs) · [metrics](http://localhost:9106/metrics) |
+| `incident-receiver` | Persistent incident lifecycle, correlation and reports | [Incident Portal](http://localhost:8090/) · [active](http://localhost:8090/incidents) · [history](http://localhost:8090/history) · [statistics](http://localhost:8090/statistics) · [API](http://localhost:8090/docs) · [metrics](http://localhost:9106/metrics) |
+| `incident-db` | PostgreSQL incident history | Internal Docker network only; no published database port |
 | `loki` | Local log storage | [Readiness](http://localhost:3100/ready) |
 | `alloy` | Docker log discovery and collection | [localhost:12345](http://localhost:12345) |
 | `grafana` | Provisioned operations dashboard | [localhost:3000](http://localhost:3000) |
@@ -386,6 +393,121 @@ The ML service trains **scikit-learn IsolationForest** at startup on 4,000 synth
 
 False positives and false negatives are possible, including intermittent misses during overheating. Deterministic process alerts remain independent of ML. The model demonstrates local inference integrated into an OT pipeline, not production-grade anomaly detection.
 
+<a id="incident-management"></a>
+
+## 🚨 Incident Management
+
+Alert detection → correlation → incident → investigation → remediation → resolution → post-incident report.
+
+The [Incident Management Portal](http://localhost:8090/) is the operational interface for incident response and historical records. **Grafana** remains the technical observability interface; **Alertmanager** routes firing/resolved alerts; the **Incident Portal** owns correlation, operator workflow and reports. Navigation links connect these local tools, including raw HLS and the annotated camera. The portal uses FastAPI, server-rendered Jinja2 and local CSS/JavaScript, without a Node/React application stack, remote fonts or an external incident platform. Interactive `/docs` uses locally vendored Swagger UI assets with the external validator disabled.
+
+### Persistence and startup
+
+PostgreSQL **18.6** stores incident history in the named `incident-db-data` Docker volume. The database lives on the internal `incident_net` and has no published host port. `incident-receiver` waits for its database health check, then runs the versioned schema migration automatically. Migration version 1 creates:
+
+| Table | Stored information |
+|---|---|
+| `incidents` | Public number (`INC-000001`), category, severity, operator status, site/line, lifecycle timestamps, root-cause suggestion/notes, impact, remediation and MTTA/MTTR |
+| `alert_occurrences` | Actual Alertmanager fingerprint/labels, startsAt epoch, firing/resolved state, annotations and receipt/recovery timestamps |
+| `incident_events` | Source events, correlation decisions, operator transitions and notes, with timestamped evidence |
+| `signals` | Latest sampled PLC, OpenCV, YOLO, safety, ML and monitoring payloads per site/line |
+| `incident_evidence` | Actual source snapshots associated with an incident; original timestamps and payloads retained |
+| `incident_reports` | Immutable final JSON and Markdown snapshots generated at resolution |
+| `schema_migrations` | Applied schema versions; initialization is transactional and repeatable |
+
+`docker compose restart` and `docker compose down` preserve named volumes. **`docker compose down -v` / `make clean` delete incident history along with other lab data.** There is no invented or seeded incident history: the previous in-memory receiver could not retain history across its restarts.
+
+### Lifecycle and timing
+
+`DETECTED` is a stored detection event. Operator states are **FIRING → ACKNOWLEDGED → INVESTIGATING → MITIGATED → RESOLVED**. Acknowledge, investigate and mitigate buttons call real API transitions; repeated actions are idempotent and invalid transitions return HTTP 409. Acknowledged incidents may be marked mitigated directly. Resolution can occur from any open state once every underlying alert has recovered.
+
+The source alert's `firing`/`resolved` state stays distinct from the operator workflow. Marking an incident mitigated does not clear a Prometheus alert. Recovered signals start a quiet period; the default policy closes the incident after **30 seconds** with no firing correlated alert. Set `INCIDENT_AUTO_RESOLVE_SECONDS=-1` for manual closure. A new firing occurrence before closure cancels the quiet period. A new occurrence after closure creates a new incident rather than rewriting a closed report.
+
+- **Detected at:** first webhook receipt that creates the incident.
+- **Started at / duration:** earliest correlated Alertmanager `startsAt` through resolution, or the current time while open.
+- **MTTA:** `acknowledged_at − detected_at`; missing acknowledgements remain null, not an invented zero response.
+- **MTTR:** `resolved_at − detected_at`; averages are calculated from persisted PostgreSQL rows.
+
+The timeline includes actual Alertmanager notifications, sampled source evidence, deterministic classification/merge decisions and operator actions. Root-cause suggestions are identified as suggestions; operators can edit root cause, impact, actions taken and resolution summary before closure. Final reports are immutable snapshots containing the incident, timestamps, duration, MTTA/MTTR, all correlated alerts, stored evidence, timeline, suggested/confirmed cause, runbook guidance and recorded actions.
+
+### Correlation policy
+
+Correlation is deterministic and scoped by **site + line**, using a default **90-second window over alert start times**. Repeated notifications for the same fingerprint/start epoch do not create duplicate incidents or timeline entries. Firing notifications' changing provisional `endsAt` values are ignored for deduplication; delayed firing notifications cannot reopen an already recovered occurrence. PostgreSQL transaction locks serialize concurrent correlation writes.
+
+| Actual source alerts / evidence | Incident category / behavior |
+|---|---|
+| `ProductionLineBlocked` plus nearby `ExcessiveVibration`, `QualityDegradation`, `MLAnomaly` and compatible `ComputerVisionAnomaly` | One **PRODUCTION_JAM**, severity HIGH. An arriving blocked-sensor anchor can promote/merge earlier symptom incidents; audit references and their history are retained |
+| OpenCV payload explicitly reports dark/blur/dirty-camera reasons without `red-object` | Keep camera degradation separate from the jam |
+| `MotorOverheating`, `ExcessiveVibration`, `QualityDegradation` without a jam anchor | Corresponding process incident; a nearby generic ML symptom can be attached/promoted |
+| `CameraStreamDown` or camera/RTSP endpoint failure | **CAMERA_OUTAGE**, HIGH; recent healthy source probes plus a healthy publisher can instead support **OT_NETWORK_CONNECTIVITY** for a failed CV edge path |
+| `OPCUAConnectionLost` or PLC endpoint failure | **OPCUA_CONNECTIVITY**, HIGH; recent healthy independent PLC probes can support **OT_NETWORK_CONNECTIVITY** for an isolated bridge path |
+| `TelemetryStale` / MQTT endpoint failure | **TELEMETRY_LOSS**, HIGH; attach stale telemetry to an existing nearby PLC-connectivity incident where applicable |
+| `YOLOModelUnavailable` | **YOLO_MODEL_FAILURE**, WARNING |
+| `PersonInRestrictedZone` | **RESTRICTED_ZONE_VIOLATION**, CRITICAL; demonstration only, not a certified safety function |
+| Camera/PLC exporter-down alerts | Join the same camera/PLC outage as their related endpoint and edge-read alerts |
+| Other actual exporter/endpoint alerts | **SERVICE_OUTAGE**, grouped by affected job/instance |
+| Standalone `MLAnomaly` | **PROCESS_ANOMALY**, WARNING; no invented diagnosis |
+
+Temporal correlation is a demonstration heuristic, not proof of a shared physical root cause. Long-running incidents of the same family remain open while their source occurrences are firing; unrelated sites/lines and service resources stay separate. Merged records are kept as audit references and excluded from canonical incident counts/history; their portal links lead to the primary incident.
+
+### Evidence, runbooks and resilience
+
+**Alertmanager is the only incident trigger.** MQTT subscriptions to telemetry, CV anomaly/detections/safety and ML anomaly topics enrich existing incidents without creating tickets. The worker coalesces latest samples in a bounded buffer, persists at most one sample per source/scope every 10 seconds and attaches only evidence within the default 30-second source-age window. A local Prometheus query collects actual probe/exporter and edge-connectivity observations. The portal displays stored timestamps and initial/latest payloads; recovery samples remain alongside the initial anomaly evidence.
+
+Runbooks are deterministic per incident type, clearly marked **DEMONSTRATION / RUNBOOK GUIDANCE**. Recommended checks are distinct from actions an operator actually records. They do not replace approved industrial safety or isolation procedures.
+
+`/healthz` reports application liveness; `/readyz` checks database initialization/connectivity. Database failures return HTTP 503 from webhook operations so Alertmanager can retry instead of silently acknowledging an unpersisted alert. Database-derived metrics are omitted while storage is unavailable, with `incident_database_ready=0`. MQTT enrichment is sampled/bounded, not a lossless event archive; temporary database or broker failures can omit intermediate evidence while primary alerts use Alertmanager retries.
+
+| Setting | Default |
+|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER` | `computer_vision`, `incidents` |
+| `POSTGRES_PASSWORD` | `local-demo-only` — development credential, not a production secret |
+| `INCIDENT_DATABASE_URL` | Optional SQLAlchemy URL override; otherwise use individual PostgreSQL variables |
+| `INCIDENT_CORRELATION_WINDOW_SECONDS` | `90` |
+| `INCIDENT_AUTO_RESOLVE_SECONDS` | `30`; negative disables automatic closure |
+| `INCIDENT_SIGNAL_INTERVAL_SECONDS` | `10` |
+| `INCIDENT_SIGNAL_MAX_AGE_SECONDS` | `30` |
+
+The UI/API remains unauthenticated and published only on localhost. PostgreSQL credentials come from environment variables; real credentials belong in a private ignored `.env`, not Git. Production would require authentication/RBAC, managed secrets, trusted network boundaries and appropriate operational policies.
+
+### Portal and API
+
+| Interface | URL / method |
+|---|---|
+| Overview, active incidents, history, statistics | [Portal](http://localhost:8090/), [active](http://localhost:8090/incidents), [history](http://localhost:8090/history), [statistics](http://localhost:8090/statistics) |
+| API documentation | [http://localhost:8090/docs](http://localhost:8090/docs) |
+| List / filter / paginate incidents | `GET /api/incidents` — `status`, `severity`, `type`, `site`, `line`, `since`, `until`, `active`, `limit`, `offset` |
+| Incident, correlated alerts, timeline and evidence | `GET /api/incidents/{id}` |
+| Root cause / impact / actions / summary | `PATCH /api/incidents/{id}` |
+| Workflow actions | `POST /api/incidents/{id}/acknowledge`, `/investigate`, `/mitigate`, `/resolve`; optional JSON `{"note":"..."}` |
+| Final reports | `GET /api/incidents/{id}/report`, `GET /api/incidents/{id}/report.md`; HTTP 409 until resolved |
+| Aggregate statistics | `GET /api/statistics` |
+| Existing compatibility endpoints | `POST /webhook`, `GET /alerts` retain the Alertmanager integration and existing scenario clients |
+| Health | [Liveness](http://localhost:8090/healthz), [readiness](http://localhost:8090/readyz) |
+
+List actual incident IDs before running an action; replace `<id>` with the returned numeric ID:
+
+```bash
+curl -fsS 'http://localhost:8090/api/incidents?active=true'
+curl -fsS -X POST http://localhost:8090/api/incidents/<id>/acknowledge \
+  -H 'Content-Type: application/json' -d '{"note":"Reviewing the stored evidence"}'
+```
+
+The `<id>` token is a placeholder; replace it before running the second command.
+
+Validate with the existing stack checks plus the new incident-specific targets:
+
+```bash
+make validate
+make test
+make incident-db-test
+make incident-test
+# Optional: also verify the final report after restarting the full stack.
+python3 scripts/incident_integration_test.py --quick --restart-stack
+```
+
+`make incident-db-test` uses a temporary PostgreSQL test schema and deletes only that schema afterward. Unit fixtures never enter operational history. `make incident-test` runs actual jam, overheat, vibration, quality-drop, dark-camera, camera-offline, OPC-UA-down and edge-OT-cut scenarios, preserving their real incident history and restoring normal. It expects the default automatic-resolution policy. See the [incident validation record](docs/INCIDENT_VALIDATION.md) for executed results and limitations.
+
 ## OPC-UA and MQTT
 
 The PLC address space is `Objects → Factory → Line1`, under namespace **`urn:computer-vision:factory`**. Each variable has a stable String NodeId such as `ns=<resolved-index>;s=Line1.MotorTemperature`; clients resolve the namespace index dynamically.
@@ -453,7 +575,7 @@ The self-signed certificates last one year; automatic renewal and production PKI
 
 The provisioned dashboard groups **Factory Process**, **OT / OPC-UA**, **Computer Vision**, **Machine Learning**, **Network / Connectivity**, **Alerts / Incidents**, a Docker logs panel and a compact **YOLO / Object Detection** section.
 
-Prometheus scrapes every five seconds. Its 13 rules cover connection loss, overheating, vibration, blocked production, quality degradation, camera loss, CV/ML anomalies, stale telemetry, failed probes and unavailable exporters. The original rules wait 10–20 seconds before firing; `YOLOModelUnavailable` waits 60 seconds with YOLO enabled and readiness zero, and `PersonInRestrictedZone` waits five seconds with fresh inference and a live stream. No alert fires just because a bottle is detected; Alertmanager groups notifications and sends both firing and resolved webhooks to `/webhook` on the incident receiver.
+Prometheus scrapes every five seconds. Its 14 rules cover connection loss, overheating, vibration, blocked production, quality degradation, camera loss, CV/ML anomalies, stale telemetry, failed probes and unavailable exporters. The original rules wait 10–20 seconds before firing; `YOLOModelUnavailable` waits 60 seconds with YOLO enabled and readiness zero, and `PersonInRestrictedZone` waits five seconds with fresh inference and a live stream. `IncidentDatabaseUnavailable` waits 15 seconds when incident storage is unavailable. No alert fires just because a bottle is detected; Alertmanager groups notifications and sends both firing and resolved webhooks to `/webhook` on the incident receiver.
 
 Blackbox probes the PLC, camera and incident HTTP APIs, Loki readiness, and TCP listeners for OPC-UA, RTSP and MQTT. Alloy discovers labeled Docker containers and sends their logs to Loki with `compose_service`, `project`, `container` and `platform` labels.
 
@@ -482,7 +604,7 @@ In Grafana Explore, select Loki and filter by service:
 
 ML and image statistics retain their last values during input loss. Check `ml_last_input_timestamp_seconds`, `cv_stream_up` and `cv_last_frame_timestamp_seconds` before interpreting them. The ML alert excludes stale input; a separate rule covers missing telemetry.
 
-Prometheus and Loki use local volumes with seven-day retention. The incident receiver keeps the latest state of up to 1,000 alert identities **in memory**, so its records are lost on restart. `factory_bottle_count_total` is a gauge of the simulated PLC counter, despite its suffix; `factory_line_status` encodes stopped/running/blocked as `0`/`1`/`2`.
+Prometheus and Loki use local volumes with seven-day retention. The Incident Portal stores incidents, alert occurrences, evidence and reports in PostgreSQL. The legacy `/alerts` endpoint returns recent alert identity states for compatibility; full history remains in the database. `factory_bottle_count_total` is a gauge of the simulated PLC counter, despite its suffix; `factory_line_status` encodes stopped/running/blocked as `0`/`1`/`2`.
 
 ## Repository structure
 
@@ -501,7 +623,7 @@ Prometheus and Loki use local volumes with seven-day retention. The incident rec
 │   ├── telemetry_bridge/     # OPC-UA → MQTT
 │   ├── cv_detector/          # RTSP decoding and image analysis
 │   ├── ml_anomaly/           # IsolationForest training and inference
-│   └── incident_receiver/    # Alertmanager webhook intake
+│   └── incident_receiver/    # Persistent correlation, lifecycle, reports and FastAPI/Jinja2 portal
 ├── tools/                    # Protocol clients and smoke tests
 ├── scripts/                  # Scenario control, demo preparation and validation
 ├── tests/                    # Vision and ML unit tests
@@ -513,6 +635,7 @@ Prometheus and Loki use local volumes with seven-day retention. The incident rec
 ├── mediamtx/                 # RTSP/HLS configuration
 ├── mosquitto/                # MQTT broker configuration
 ├── docs/
+│   ├── INCIDENT_VALIDATION.md # PostgreSQL, portal, correlation and scenario validation
 │   ├── VALIDATION.md         # Recorded runtime results and test limitations
 │   └── images/              # Screenshot capture guide and intended PNG location
 ├── .github/workflows/ci.yml   # Static, unit and configuration checks
@@ -524,7 +647,7 @@ Prometheus and Loki use local volumes with seven-day retention. The incident rec
 
 ## Validation
 
-The [original validation record](docs/VALIDATION.md) preserves the baseline results. The [YOLO upgrade record](docs/YOLO_VALIDATION.md) documents the changed files, 21 unit tests, actual offline inference, measured latency and extended failure/recovery checks on macOS arm64 with Docker Desktop. It also records untested areas, including Windows execution and browser visual rendering. These are recorded results, not a live CI status badge.
+The [Incident Management record](docs/INCIDENT_VALIDATION.md) documents the current PostgreSQL schema, portal, correlation rules, 50 tests and real incident/restart checks. The [original validation record](docs/VALIDATION.md) preserves the baseline results. The [YOLO upgrade record](docs/YOLO_VALIDATION.md) documents the changed files, 21 unit tests, actual offline inference, measured latency and extended failure/recovery checks on macOS arm64 with Docker Desktop. It also records untested areas, including Windows execution and browser visual rendering. These are recorded results, not a live CI status badge.
 
 ### Complete automated test sequence
 
@@ -547,6 +670,10 @@ make smoke
 
 # Inject local faults, verify alerts/recovery, then restore normal.
 make integration
+
+# Persistent incident workflow, reports and isolated PostgreSQL checks.
+make incident-db-test
+make incident-test
 ```
 
 `make validate` checks Compose configuration, Python syntax, YAML/JSON, dashboard structure, shell syntax, networks and localhost port bindings. `make test` runs the offline unit suite. `make yolo-test` requires the CV image's actual local weights and reports model classes, detections and inference latency.
@@ -619,7 +746,7 @@ The bridge, CV detector and camera publisher retry temporary dependency failures
 
 **This configuration is intended for local development and demonstration.** It includes anonymous MQTT, `admin/admin` Grafana credentials, self-signed OPC-UA certificates and unauthenticated internal APIs. Python services run without root; Alloy accesses the Docker socket. A `:ro` socket mount does **not** make Docker API operations read-only.
 
-Production deployment would require managed secrets, authentication and RBAC, MQTT TLS/mTLS, certificate trust and rotation, OT firewall/ACL policies, restricted Docker access, image hardening and scanning, backups and audit logging. The shared Python image retains the existing CV/ML dependencies; PyTorch and Ultralytics are isolated in a dedicated CV image.
+Production deployment would require managed secrets, authentication and RBAC, MQTT TLS/mTLS, certificate trust and rotation, OT firewall/ACL policies, restricted Docker access, image hardening and scanning, backups and audit logging. The shared Python image retains the existing CV/ML dependencies and adds the small incident database/template libraries; PyTorch and Ultralytics are isolated in a dedicated CV image. PostgreSQL uses an internal network and local demo credentials. The incident UI/API requires authentication/RBAC before any production deployment.
 
 Useful lifecycle commands:
 
@@ -642,7 +769,7 @@ These are **future improvements**, not features currently implemented:
 - Integrate a real OPC-UA device or PLC.
 - Extend the simulation to multiple production lines and sites.
 - Add GPU-accelerated inference.
-- Build richer Grafana incident views and persistent incident history.
+- Add incident authentication/RBAC, retention policies, richer operator ownership and external identity integration.
 - Add historical ML/anomaly analysis and a more complete MLOps/model lifecycle workflow.
 - Introduce more advanced OT network failure scenarios.
 

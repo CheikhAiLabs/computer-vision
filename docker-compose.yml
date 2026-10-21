@@ -11,7 +11,7 @@ x-python: &python
   build: .
   image: computer-vision-python:local
   init: true
-  environment:
+  environment: &python-environment
     LOG_LEVEL: ${LOG_LEVEL:-INFO}
     MQTT_HOST: mqtt
     OPCUA_URL: opc.tcp://opcua-sim:4840/computer-vision/server/
@@ -96,13 +96,44 @@ services:
     networks: [cloud_net]
     ports: ["127.0.0.1:9103:9103"]
     depends_on: [mqtt]
+  incident-db:
+    <<: *defaults
+    image: postgres:18.6-alpine
+    networks: [incident_net]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-computer_vision}
+      POSTGRES_USER: ${POSTGRES_USER:-incidents}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-demo-only}
+    volumes: [incident-db-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
   incident-receiver:
     <<: *python
     command: [python, -m, services.incident_receiver.main]
-    networks: [cloud_net]
+    networks: [cloud_net, incident_net]
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MQTT_HOST: mqtt
+      POSTGRES_HOST: incident-db
+      POSTGRES_DB: ${POSTGRES_DB:-computer_vision}
+      POSTGRES_USER: ${POSTGRES_USER:-incidents}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-demo-only}
+      INCIDENT_DATABASE_URL: ${INCIDENT_DATABASE_URL:-}
+      INCIDENT_CORRELATION_WINDOW_SECONDS: ${INCIDENT_CORRELATION_WINDOW_SECONDS:-90}
+      INCIDENT_AUTO_RESOLVE_SECONDS: ${INCIDENT_AUTO_RESOLVE_SECONDS:-30}
+      INCIDENT_SIGNAL_INTERVAL_SECONDS: ${INCIDENT_SIGNAL_INTERVAL_SECONDS:-10}
+      INCIDENT_SIGNAL_MAX_AGE_SECONDS: ${INCIDENT_SIGNAL_MAX_AGE_SECONDS:-30}
+      INCIDENT_PROMETHEUS_URL: http://prometheus:9090
+    depends_on:
+      incident-db: {condition: service_healthy}
+      mqtt: {condition: service_started}
     ports: ["127.0.0.1:8090:8090", "127.0.0.1:9106:9106"]
     healthcheck:
-      test: [CMD, curl, -fsS, http://localhost:8090/healthz]
+      test: [CMD, curl, -fsS, http://localhost:8090/readyz]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -177,12 +208,20 @@ services:
     <<: *python
     restart: "no"
     profiles: [tools]
-    networks: [ot_net, cloud_net]
+    networks: [ot_net, cloud_net, incident_net]
+    environment:
+      <<: *python-environment
+      POSTGRES_HOST: incident-db
+      POSTGRES_DB: ${POSTGRES_DB:-computer_vision}
+      POSTGRES_USER: ${POSTGRES_USER:-incidents}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-demo-only}
     command: [python, /tools/smoke_test.py]
 networks:
   ot_net: {}
   cloud_net: {}
+  incident_net: {internal: true}
 volumes:
+  incident-db-data: {}
   mqtt-data: {}
   opcua-certs: {}
   prometheus-data: {}
