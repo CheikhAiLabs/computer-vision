@@ -1,0 +1,169 @@
+name: computer-vision
+x-defaults: &defaults
+  restart: unless-stopped
+  labels:
+    com.computer-vision.lab: "true"
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+x-python: &python
+  <<: *defaults
+  build: .
+  image: computer-vision-python:local
+  init: true
+  environment:
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    MQTT_HOST: mqtt
+    OPCUA_URL: opc.tcp://opcua-sim:4840/computer-vision/server/
+    RTSP_URL: rtsp://mediamtx:8554/line1
+services:
+  mqtt:
+    <<: *defaults
+    image: eclipse-mosquitto:2.0.22
+    networks: [cloud_net]
+    ports: ["127.0.0.1:1883:1883"]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-data:/mosquitto/data
+  opcua-sim:
+    <<: *python
+    command: [python, -m, services.opcua_sim.main]
+    hostname: opcua-sim
+    networks: [ot_net]
+    ports: ["127.0.0.1:4840:4840", "127.0.0.1:8081:8081", "127.0.0.1:9101:9101"]
+    volumes: [opcua-certs:/certs]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8081/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+  mediamtx:
+    <<: *defaults
+    image: bluenviron/mediamtx:1.21.2
+    networks: [ot_net]
+    ports: ["127.0.0.1:8554:8554", "127.0.0.1:8888:8888"]
+    volumes: [./mediamtx/mediamtx.yml:/mediamtx.yml:ro]
+  camera-sim:
+    <<: *python
+    command: [python, -m, services.camera_sim.main]
+    networks: [ot_net]
+    ports: ["127.0.0.1:8082:8082", "127.0.0.1:9105:9105"]
+    depends_on: [mediamtx]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8082/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+  telemetry-bridge:
+    <<: *python
+    command: [python, -m, services.telemetry_bridge.main]
+    networks: [ot_net, cloud_net]
+    ports: ["127.0.0.1:9102:9102"]
+    depends_on: [mqtt, opcua-sim]
+  cv-detector:
+    <<: *python
+    command: [python, -m, services.cv_detector.main]
+    networks: [ot_net, cloud_net]
+    ports: ["127.0.0.1:9104:9104"]
+    depends_on: [mqtt, mediamtx]
+  ml-anomaly:
+    <<: *python
+    command: [python, -m, services.ml_anomaly.main]
+    networks: [cloud_net]
+    ports: ["127.0.0.1:9103:9103"]
+    depends_on: [mqtt]
+  incident-receiver:
+    <<: *python
+    command: [python, -m, services.incident_receiver.main]
+    networks: [cloud_net]
+    ports: ["127.0.0.1:8090:8090", "127.0.0.1:9106:9106"]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8090/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+  prometheus:
+    <<: *defaults
+    image: prom/prometheus:v3.15.0
+    networks: [ot_net, cloud_net]
+    ports: ["127.0.0.1:9090:9090"]
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --storage.tsdb.retention.time=7d]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-data:/prometheus
+  blackbox-exporter:
+    <<: *defaults
+    image: prom/blackbox-exporter:v0.29.0
+    networks: [ot_net, cloud_net]
+    ports: ["127.0.0.1:9115:9115"]
+    command: [--config.file=/etc/blackbox_exporter/config.yml]
+    volumes: [./prometheus/blackbox.yml:/etc/blackbox_exporter/config.yml:ro]
+  alertmanager:
+    <<: *defaults
+    image: prom/alertmanager:v0.34.1
+    networks: [cloud_net]
+    ports: ["127.0.0.1:9093:9093"]
+    command: [--config.file=/etc/alertmanager/alertmanager.yml, --storage.path=/alertmanager]
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+  loki:
+    <<: *defaults
+    image: grafana/loki:3.7.9
+    networks: [cloud_net]
+    ports: ["127.0.0.1:3100:3100"]
+    command: [-config.file=/etc/loki/loki.yml]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+  alloy:
+    <<: *defaults
+    image: grafana/alloy:v1.21.0
+    user: "0:0"
+    networks: [cloud_net]
+    ports: ["127.0.0.1:12345:12345"]
+    command: [run, --server.http.listen-addr=0.0.0.0:12345, --storage.path=/var/lib/alloy/data, --disable-reporting, /etc/alloy/config.alloy]
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+  grafana:
+    <<: *defaults
+    image: grafana/grafana:13.2.4
+    networks: [cloud_net]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
+      GF_PLUGINS_PUBLIC_KEY_RETRIEVAL_DISABLED: "true"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+  tools:
+    <<: *python
+    restart: "no"
+    profiles: [tools]
+    networks: [ot_net, cloud_net]
+    command: [python, /tools/smoke_test.py]
+networks:
+  ot_net: {}
+  cloud_net: {}
+volumes:
+  mqtt-data: {}
+  opcua-certs: {}
+  prometheus-data: {}
+  alertmanager-data: {}
+  loki-data: {}
+  alloy-data: {}
+  grafana-data: {}

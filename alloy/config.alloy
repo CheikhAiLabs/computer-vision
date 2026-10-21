@@ -1,0 +1,46 @@
+logging {
+  level = "info"
+}
+
+discovery.docker "lab" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+  filter {
+    name = "label"
+    values = ["com.computer-vision.lab=true"]
+  }
+}
+
+discovery.relabel "lab" {
+  targets = discovery.docker.lab.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label = "compose_service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label = "project"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex = "/(.*)"
+    target_label = "container"
+  }
+  rule {
+    target_label = "platform"
+    replacement = "docker"
+  }
+}
+
+loki.source.docker "lab" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.lab.output
+  forward_to = [loki.write.local.receiver]
+  refresh_interval = "5s"
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

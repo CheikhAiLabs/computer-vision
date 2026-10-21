@@ -1,0 +1,73 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+certs/
+artifacts/
+*.pem
+*.der
+.DS_Store
+
+# Local environment variants; keep the documented, non-secret template.
+.env.*
+!.env.example
+
+# Additional private key/certificate formats and local secret stores.
+*.key
+*.crt
+*.cer
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+certificates/
+secrets/
+
+# Runtime storage, exports and local databases (Docker named volumes stay external).
+data/
+volumes/
+runtime/
+logs/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+
+# Alternate Python environments and generated tooling output.
+venv/
+env/
+ENV/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Local editor/agent settings and operating system files.
+.vscode/
+.idea/
+.fleet/
+.history/
+.codex/
+*.iml
+Thumbs.db
+Desktop.ini
+
+# Temporary files and editor backups.
+/tmp/
+/temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~

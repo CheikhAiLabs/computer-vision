@@ -1,0 +1,13 @@
+global:
+  resolve_timeout: 1m
+route:
+  receiver: local-incidents
+  group_by: [alertname, site, line]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 15m
+receivers:
+  - name: local-incidents
+    webhook_configs:
+      - url: http://incident-receiver:8090/webhook
+        send_resolved: true

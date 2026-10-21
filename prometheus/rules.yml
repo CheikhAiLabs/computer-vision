@@ -1,0 +1,58 @@
+groups:
+  - name: industrial-lab
+    rules:
+      - alert: OPCUAConnectionLost
+        expr: bridge_opcua_connected == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'Edge bridge cannot read the PLC'}
+      - alert: MotorOverheating
+        expr: factory_motor_temperature_c > 80
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'Motor temperature exceeds 80 C'}
+      - alert: ExcessiveVibration
+        expr: factory_motor_vibration_g > 0.5
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: 'Motor vibration exceeds 0.5 g'}
+      - alert: ProductionLineBlocked
+        expr: factory_blocked_sensor == 1
+        for: 10s
+        labels: {severity: critical}
+        annotations: {summary: 'Line 1 blocked sensor is active'}
+      - alert: QualityDegradation
+        expr: factory_quality_score < 0.9
+        for: 20s
+        labels: {severity: warning}
+        annotations: {summary: 'Product quality below 90 percent'}
+      - alert: CameraStreamDown
+        expr: cv_stream_up == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'CV cannot decode the RTSP stream'}
+      - alert: ComputerVisionAnomaly
+        expr: cv_anomaly_detected == 1 and cv_stream_up == 1
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: 'Visual anomaly or degraded camera image'}
+      - alert: MLAnomaly
+        expr: ml_anomaly_detected == 1 and (time() - ml_last_input_timestamp_seconds < 15)
+        for: 20s
+        labels: {severity: warning}
+        annotations: {summary: 'IsolationForest detected unusual telemetry'}
+      - alert: TelemetryStale
+        expr: time() - ml_last_input_timestamp_seconds > 20
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: 'ML has no recent telemetry input'}
+      - alert: EndpointUnavailable
+        expr: probe_success == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'Blackbox endpoint probe failed'}
+      - alert: ExporterDown
+        expr: up == 0
+        for: 20s
+        labels: {severity: warning}
+        annotations: {summary: 'Prometheus scrape target unavailable'}

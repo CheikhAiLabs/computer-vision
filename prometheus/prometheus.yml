@@ -1,0 +1,60 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  external_labels:
+    site: local
+    line: line1
+rule_files:
+  - /etc/prometheus/rules.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+  - job_name: opcua-sim
+    static_configs:
+      - targets: [opcua-sim:9101]
+  - job_name: telemetry-bridge
+    static_configs:
+      - targets: [telemetry-bridge:9102]
+  - job_name: ml-anomaly
+    static_configs:
+      - targets: [ml-anomaly:9103]
+  - job_name: cv-detector
+    static_configs:
+      - targets: [cv-detector:9104]
+  - job_name: camera-sim
+    static_configs:
+      - targets: [camera-sim:9105]
+  - job_name: incident-receiver
+    static_configs:
+      - targets: [incident-receiver:9106]
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: [http://opcua-sim:8081/healthz, http://camera-sim:8082/healthz, http://incident-receiver:8090/healthz, http://loki:3100/ready]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+  - job_name: blackbox-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: [opcua-sim:4840, mediamtx:8554, mqtt:1883]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
