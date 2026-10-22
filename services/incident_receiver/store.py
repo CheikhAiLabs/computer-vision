@@ -222,6 +222,8 @@ class Store:
             # Independent endpoint probes override an earlier tentative network-path attribution.
             if kind in {'OPCUA_CONNECTIVITY','CAMERA_OUTAGE'}:
                 self._promote(session,same,kind,family)
+            if kind in {'PRODUCT_STALLED','COUNT_MISMATCH'} and same.type=='PRODUCT_FLOW_ANOMALY':
+                self._promote(session,same,kind,family)
             return same
         # An ML symptom can arrive before its specific process alert.
         if kind in {'MOTOR_OVERHEAT','EXCESSIVE_VIBRATION','QUALITY_DEGRADATION'}:

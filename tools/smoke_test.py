@@ -18,7 +18,7 @@ from opcua_secure_read import main as secure_read
 
 
 def http_check(url):
-    response = httpx.get(url, timeout=5)
+    response = httpx.get(url, timeout=5, follow_redirects=True)
     response.raise_for_status()
     return response
 
@@ -150,7 +150,7 @@ def prometheus_check():
 def grafana_check():
     response = httpx.get("http://grafana:3000/api/dashboards/uid/industrial-computer-vision", auth=("admin", "admin"), timeout=5)
     response.raise_for_status()
-    assert {'YOLO / Object Detection', 'Incident Management'} <= {p['title'] for p in response.json()['dashboard']['panels']}
+    assert {'YOLO / Object Detection', 'Incident Management', 'Multi-Camera Vision'} <= {p['title'] for p in response.json()['dashboard']['panels']}
     assert any(link['url'] == 'http://localhost:8090/' for link in response.json()['dashboard']['links'])
     sources = httpx.get("http://grafana:3000/api/datasources", auth=("admin", "admin"), timeout=5).json()
     assert {"prometheus", "loki"} <= {s["uid"] for s in sources}
@@ -174,6 +174,50 @@ def incident_check():
         if detail['incident']['status'] == 'RESOLVED':
             assert http_check(f'http://incident-receiver:8090/api/incidents/{incident_id}/report').json()['final']
             assert '# INC-' in http_check(f'http://incident-receiver:8090/api/incidents/{incident_id}/report.md').text
+
+
+def multicamera_check():
+    base='http://cv-detector:8083'
+    assert 'Industrial Vision Control Room' in http_check(base+'/').text
+    state=http_check(base+'/api/state').json()
+    assert {c['camera'] for c in state['cameras']}=={'entry','process','exit'}
+    assert len(http_check(base+'/api/twin').json()['nodes'])==5
+    metrics=http_check('http://cv-detector:9104/metrics').text
+    for camera in ('entry','process','exit'):
+        capture=open_capture('rtsp://mediamtx:8554/line1-'+camera)
+        try:
+            ok,frame=capture.read()
+            assert ok and frame.shape[:2]==(360,640),camera
+        finally:
+            capture.release()
+        assert '#EXTM3U' in http_check('http://mediamtx:8888/line1-'+camera+'/index.m3u8').text
+        assert f'vision_camera_up{{camera="{camera}"}} 1.0' in metrics
+        if cv_metrics().get('cv_annotated_enabled')==1:
+            assert cv2.imdecode(np.frombuffer(http_check(base+f'/cameras/{camera}/snapshot.jpg').content,np.uint8),cv2.IMREAD_COLOR) is not None
+            assert http_check(base+f'/cameras/{camera}/heatmap.jpg').headers['content-type']=='image/jpeg'
+            with httpx.stream('GET',base+f'/cameras/{camera}/annotated.mjpg',timeout=10) as stream:
+                stream.raise_for_status()
+                data=b''
+                for chunk in stream.iter_bytes():
+                    data+=chunk
+                    if b'\xff\xd9' in data:
+                        assert b'\xff\xd8' in data
+                        break
+                    assert len(data)<2_000_000
+    if cv_metrics().get('yolo_enabled')==1:
+        assert state['yolo']['ready']
+        assert all(c['tracking_ready'] for c in state['cameras']),state
+        assert state['counts']['ready'],state['counts']
+        before=(state['counts']['entered'],state['counts']['exited'])
+        deadline=time.monotonic()+20
+        while time.monotonic()<deadline:
+            time.sleep(1)
+            counts=http_check(base+'/api/state').json()['counts']
+            if counts['entered']>before[0] and counts['exited']>before[1]:
+                break
+        else:
+            raise AssertionError('No observed entry and exit crossings in normal scene')
+    assert 'factory_line_health_score' in metrics
 
 
 def logs_check():
@@ -204,6 +248,7 @@ def main():
     retry("Prometheus targets, metrics and probes", prometheus_check)
     retry("Grafana dashboard and data sources", grafana_check)
     retry("Persistent incident portal, API and database readiness", incident_check)
+    retry("Three raw/annotated cameras, tracking, counts, control room and digital twin", multicamera_check)
     retry("Alloy → Loki Docker logs", logs_check)
     print("All smoke checks passed", flush=True)
 

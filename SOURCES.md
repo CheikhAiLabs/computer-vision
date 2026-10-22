@@ -75,3 +75,16 @@ page, from https://github.com/swagger-api/swagger-ui/tree/v5.34.0/dist .
 Its Apache-2.0 license and bundled third-party notices are retained in
 `services/incident_receiver/static/vendor/swagger-ui/`. The page loads its
 specification and assets locally and disables the external Swagger validator.
+
+## Multi-camera tracking and visual operations
+
+The tracker, counting/reconciliation rules, OpenCV marker inspection, activity
+heatmap, scene geometry, Control Room and 2D line schematic are original project
+code. They reuse the assets and CPU YOLO model attributed above. There is no
+additional learned tracker or re-identification weight file.
+
+SciPy 1.18.1 provides `scipy.optimize.linear_sum_assignment` for the camera-local
+class/position assignment. Official source: https://github.com/scipy/scipy ;
+documentation: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html .
+SciPy retains its BSD-3-Clause license and bundled third-party notices. It was
+already a scikit-learn dependency and is now pinned explicitly for direct use.

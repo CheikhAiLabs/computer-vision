@@ -5,7 +5,7 @@ import hashlib
 SEVERITIES = ('INFO', 'WARNING', 'HIGH', 'CRITICAL')
 STATUSES = ('FIRING', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED', 'RESOLVED')
 JAM_ALERTS = {'ProductionLineBlocked','ComputerVisionAnomaly','ExcessiveVibration',
-              'QualityDegradation','MLAnomaly'}
+              'QualityDegradation','MLAnomaly','ProductStalled','ProductExcessiveDwell'}
 
 
 @dataclass(frozen=True)
@@ -17,6 +17,26 @@ class Rule:
 
 
 RULES = {
+ 'PRODUCT_STALLED': Rule('Tracked Product Stalled','HIGH',
+   'Image-inferred product positions remained nearly stationary while fresh PLC telemetry expected movement.',
+   ('Inspect process camera track history and dwell time.', 'Compare conveyor speed and blocked sensor.',
+    'Inspect the product using approved local procedures.', 'Confirm forward movement and the visual signal recover.')),
+ 'WRONG_DIRECTION': Rule('Product Moving Against Flow','HIGH',
+   'A camera-local track moved against the configured positive conveyor direction for the observation window.',
+   ('Inspect the annotated direction arrow.', 'Check conveyor direction and possible tracking errors.',
+    'Confirm normal product flow.')),
+ 'COUNT_MISMATCH': Rule('PLC and Vision Count Mismatch','WARNING',
+   'PLC and image-based entry count deltas exceeded the configured tolerance and hold time.',
+   ('Inspect baseline epoch and telemetry freshness.', 'Compare photoeye pulses with observed entry crossings.',
+    'Check missed detections, sensor bounce and product spacing.', 'Reset only by an explicit new observation session if justified.')),
+ 'PRODUCT_FLOW_ANOMALY': Rule('Product Flow or Dwell Anomaly','WARNING',
+   'Observed inspection dwell or unmatched entry age exceeded the configured limit; aggregate flow is not re-identification.',
+   ('Inspect entry and exit counts and observation availability.', 'Check inspection dwell and downstream flow.',
+    'Compare PLC process signals.', 'Confirm recovery of fresh forward crossings.')),
+ 'VISUAL_QUALITY_FAILURE': Rule('Visual Inspection Marker Failure','WARNING',
+   'OpenCV found a horizontal inspection fiducial outside the demonstration orientation specification; generic YOLO does not classify this defect.',
+   ('Inspect the actual image and marker geometry.', 'Check product alignment and orientation.',
+    'Confirm the visual marker returns to the accepted geometry.')),
  'PRODUCTION_JAM': Rule('Production Line Jam','HIGH',
    'A production blocked-sensor alert indicates conveyor obstruction; inspect correlated evidence to confirm the cause.',
    ('Verify conveyor obstruction and the approved line safety state.',
@@ -96,14 +116,20 @@ def classify(name, labels, monitoring):
       'ComputerVisionAnomaly':'CAMERA_DEGRADATION','YOLOModelUnavailable':'YOLO_MODEL_FAILURE',
       'PersonInRestrictedZone':'RESTRICTED_ZONE_VIOLATION','MLAnomaly':'PROCESS_ANOMALY',
       'TelemetryStale':'TELEMETRY_LOSS'}
+    direct.update({'ProductStalled':'PRODUCT_STALLED','ProductWrongDirection':'WRONG_DIRECTION',
+      'ProductionCountMismatch':'COUNT_MISMATCH','ProductMissingExit':'PRODUCT_FLOW_ANOMALY',
+      'ProductExcessiveDwell':'PRODUCT_FLOW_ANOMALY','VisualQualityFailure':'VISUAL_QUALITY_FAILURE',
+      'VisionPersonInRestrictedZone':'RESTRICTED_ZONE_VIOLATION'})
     if name in direct:
         kind = direct[name]
-        return kind, kind
+        family = ('process-tracking' if name in {'ProductStalled','ProductExcessiveDwell'} else
+                  'product-count' if name in {'ProductionCountMismatch','ProductMissingExit'} else kind)
+        return kind, family
     if name == 'OPCUAConnectionLost':
         healthy = monitoring_value(monitoring,'probe_success','opcua-sim:4840') == 1
         kind = 'OT_NETWORK_CONNECTIVITY' if healthy else 'OPCUA_CONNECTIVITY'
         return kind, 'plc-connectivity'
-    if name == 'CameraStreamDown':
+    if name in {'CameraStreamDown','VisionCameraUnavailable'}:
         healthy = (monitoring_value(monitoring,'probe_success','camera-sim:8082') == 1
                    and monitoring_value(monitoring,'probe_success','mediamtx:8554') == 1
                    and monitoring_value(monitoring,'camera_publisher_up') == 1

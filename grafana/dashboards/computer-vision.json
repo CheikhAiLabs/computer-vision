@@ -2138,6 +2138,671 @@
           "targetBlank": true
         }
       ]
+    },
+    {
+      "id": 48,
+      "title": "Multi-Camera Vision",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 103,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 49,
+      "title": "Camera availability",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(vision_camera_up)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "title": "Vision entry count",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_products_entered_total",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "title": "Vision exit count",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_products_exited_total",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "PLC count",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "factory_bottle_count_total",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "PLC vs vision difference",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_plc_count_difference",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "title": "Product flow / minute",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 104,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_product_flow_per_minute",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "title": "Stalled product",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "max(vision_stalled_object_detected)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "title": "Restricted zone (tracked demo)",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "max(vision_restricted_zone_violation)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "title": "Line health score",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "factory_line_health_score",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "title": "Camera FPS",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_effective_fps",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "fps",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "title": "Inference latency",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_inference_latency_seconds",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "title": "Tracking latency",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 109,
+        "w": 4,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vision_tracking_latency_seconds",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{camera}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "links": [
+        {
+          "title": "Open vision control room",
+          "url": "http://localhost:8083/",
+          "targetBlank": true
+        }
+      ]
     }
   ],
   "links": [
@@ -2150,6 +2815,12 @@
       "title": "Camera HLS",
       "url": "http://localhost:8888/line1/",
       "targetBlank": true
+    },
+    {
+      "title": "Vision Control Room",
+      "url": "http://localhost:8083/",
+      "targetBlank": true,
+      "type": "link"
     }
   ]
 }

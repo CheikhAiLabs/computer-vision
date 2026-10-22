@@ -1,3 +1,5 @@
+Latest multi-camera upgrade: see [MULTICAMERA_VALIDATION.md](MULTICAMERA_VALIDATION.md) for the three-camera runtime, 77 tests, Control Room and real visual scenario checks.
+
 # Local validation record — 2026-10-21
 
 The subsequent [Incident Management validation](INCIDENT_VALIDATION.md) records

@@ -77,6 +77,22 @@ class IncidentTests(unittest.TestCase):
         self.assertEqual(self.store.stats()['total'],1)
         self.assertEqual({a['name'] for a in self.store.detail(1)['alerts']},set(names))
 
+    def test_visual_dwell_and_stall_share_incident_then_join_jam(self):
+        self.open('ProductExcessiveDwell')
+        self.clock.advance(5)
+        self.open('ProductStalled')
+        self.assertEqual(self.store.stats()['total'],1)
+        self.assertEqual(self.store.detail(1)['incident']['type'],'PRODUCT_STALLED')
+        self.open('ProductionLineBlocked')
+        self.assertEqual(self.store.stats()['total'],1)
+        self.assertEqual(self.store.detail(1)['incident']['type'],'PRODUCTION_JAM')
+
+    def test_missing_exit_and_count_difference_share_flow_incident(self):
+        self.open('ProductMissingExit')
+        self.open('ProductionCountMismatch')
+        self.assertEqual(self.store.stats()['total'],1)
+        self.assertEqual(self.store.detail(1)['incident']['type'],'COUNT_MISMATCH')
+
     def test_late_jam_anchor_merges_symptoms_without_losing_events(self):
         self.open('ComputerVisionAnomaly')
         self.open('ExcessiveVibration')

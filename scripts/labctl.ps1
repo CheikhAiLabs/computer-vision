@@ -1,5 +1,6 @@
 param([Parameter(Mandatory=$true, Position=0)][string]$Command)
 $ErrorActionPreference = 'Stop'
+# Multi-camera scenarios share the validated Python controller, including stalled-product.
 $Controller = Join-Path $PSScriptRoot 'labctl.py'
 if (Get-Command python3 -ErrorAction SilentlyContinue) {
     & python3 $Controller $Command

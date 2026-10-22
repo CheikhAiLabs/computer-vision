@@ -62,7 +62,9 @@ groups:
         labels: {severity: warning}
         annotations: {summary: 'Optional YOLO model unavailable; classical CV continues'}
       - alert: PersonInRestrictedZone
-        expr: yolo_restricted_zone_violation == 1 and yolo_enabled == 1 and yolo_model_ready == 1 and cv_stream_up == 1 and (time() - yolo_last_inference_timestamp_seconds < 3)
+        # Exporter flags expire after 3s; allow two 5s scrape intervals here so
+        # evaluation/scrape scheduling cannot suppress a continuously fresh signal.
+        expr: yolo_restricted_zone_violation == 1 and yolo_enabled == 1 and yolo_model_ready == 1 and cv_stream_up == 1 and (time() - yolo_last_inference_timestamp_seconds < 10)
         for: 5s
         labels: {severity: warning}
         annotations: {summary: 'Demonstration only: person detected overlapping restricted zone'}
@@ -71,3 +73,43 @@ groups:
         for: 15s
         labels: {severity: warning}
         annotations: {summary: 'Incident storage unavailable; Alertmanager retries webhook delivery'}
+      - alert: VisionCameraUnavailable
+        expr: vision_camera_up == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'Multi-camera raw video unavailable'}
+      - alert: ProductStalled
+        expr: vision_stalled_object_detected == 1 and on(camera) vision_tracking_ready == 1
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'Tracked product stationary while conveyor should be moving'}
+      - alert: ProductWrongDirection
+        expr: vision_wrong_direction_detected == 1 and on(camera) vision_tracking_ready == 1
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'Tracked product moving opposite production flow'}
+      - alert: ProductExcessiveDwell
+        expr: vision_excessive_dwell_detected == 1 and on(camera) vision_tracking_ready == 1
+        for: 10s
+        labels: {severity: warning}
+        annotations: {summary: 'Tracked product exceeded inspection dwell time'}
+      - alert: ProductionCountMismatch
+        expr: vision_count_mismatch == 1 and vision_count_reconciliation_ready == 1
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'PLC and observed entry counts differ beyond tolerance and hold'}
+      - alert: ProductMissingExit
+        expr: vision_missing_exit_detected == 1 and vision_count_reconciliation_ready == 1
+        for: 10s
+        labels: {severity: warning}
+        annotations: {summary: 'Aggregate entry flow has no timely observed exit crossing'}
+      - alert: VisualQualityFailure
+        expr: vision_quality_failure == 1 and on(camera) vision_camera_up == 1
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'OpenCV inspection marker orientation out of specification'}
+      - alert: VisionPersonInRestrictedZone
+        expr: vision_restricted_zone_violation == 1 and on(camera) vision_tracking_ready == 1
+        for: 5s
+        labels: {severity: warning}
+        annotations: {summary: 'Demonstration only - tracked person overlaps restricted zone'}

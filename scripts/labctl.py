@@ -8,6 +8,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 COMMANDS = ('normal object-mix person-zone fallen-object crowded-line jam overheat vibration quality-drop stopped dirty-camera dark-camera blur-camera '
+            'stalled-product wrong-direction misaligned-product count-mismatch '
             'camera-offline camera-online opcua-down opcua-up edge-ot-cut edge-ot-restore '
             'cv-ot-cut cv-ot-restore state').split()
 
@@ -60,6 +61,11 @@ def run(command):
         network("cv-detector", True)
         request(8081, "/scenario/normal")
         request(8082, "/scenario/normal")
+        # Explicitly start a new observation baseline, retaining lifetime vision counters.
+        request(8083, "/api/reconciliation/reset")
+    elif command in ('stalled-product','wrong-direction','misaligned-product','count-mismatch'):
+        request(8081, '/scenario/'+('count-mismatch' if command=='count-mismatch' else 'normal'))
+        request(8082, '/scenario/'+command)
     elif command in ("jam", "overheat", "vibration", "quality-drop", "stopped"):
         request(8081, "/scenario/" + command)
         request(8082, "/scenario/" + ("jam" if command == "jam" else "normal"))

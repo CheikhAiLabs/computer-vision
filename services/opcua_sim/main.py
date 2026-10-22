@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import logging
 import math
 import os
+import time
 from asyncua import Server, ua
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from common.certs import ensure_certificate
 from common.config import NAMESPACE
 from common.runtime import setup
 from services.opcua_sim.process import sample, SCENARIOS
+from common.line import sensor_index
 
 LOG = logging.getLogger(__name__)
 scenario = "normal"
@@ -33,15 +35,21 @@ METRICS = {key: Gauge(metric, help_text) for key, metric, help_text in [
 async def update(nodes):
     global state
     tick, count = 0, 0
+    previous_sensor = sensor_index(time.time())
     while True:
+        current_sensor = sensor_index(time.time())
+        pulses = max(0, current_sensor - previous_sensor)
+        previous_sensor = current_sensor
+        if scenario not in {'jam', 'stopped'}:
+            # Independent simulated photoeye; count-mismatch models a bouncing sensor.
+            count += pulses * (3 if scenario == 'count-mismatch' else 1)
         state = sample(tick, scenario, count)
         state.update(overrides)
         for name, node in nodes.items():
             await node.write_value(state[name])
             value = {"STOPPED": 0, "RUNNING": 1, "BLOCKED": 2}[state[name]] if name == "LineStatus" else state[name]
             METRICS[name].set(value)
-        if state["ConveyorSpeed"] > 0.1 and not state["BlockedSensor"]:
-            count = int(state["BottleCount"]) + 3
+        count = int(state['BottleCount'])
         tick += 1
         await asyncio.sleep(1)
 

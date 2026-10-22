@@ -1,86 +1,50 @@
+"""Backward-compatible process stream plus shared multi-camera CV runtime."""
 import logging
 import os
-import time
-os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+import threading
+os.environ.setdefault('OPENCV_FFMPEG_CAPTURE_OPTIONS','rtsp_transport;tcp')
 import cv2
-from prometheus_client import Gauge, start_http_server
+from prometheus_client import start_http_server
+import uvicorn
 from common.config import RTSP_URL
-from common.mqtt import start_client, publish, close
-from common.runtime import STOP, setup
-from services.cv_detector.vision import analyze
-from services.cv_detector.yolo import Worker, flag
-from services.cv_detector.annotated import Preview
-
-LOG = logging.getLogger(__name__)
-UP = Gauge("cv_stream_up", "Recent frame successfully decoded")
-ANOMALY = Gauge("cv_anomaly_detected", "One or more CV or stream anomalies")
-UPDATED = Gauge("cv_last_frame_timestamp_seconds", "Last decoded frame time")
-METRICS = {name: Gauge("cv_" + name, name.replace("_", " ")) for name in (
-    "red_pixel_ratio", "frame_brightness", "laplacian_variance", "center_to_border_brightness_ratio")}
+from common.mqtt import start_client,publish,close
+from common.runtime import STOP,setup
 
 
-def open_capture():
-    return cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG,
-        [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 4000, cv2.CAP_PROP_READ_TIMEOUT_MSEC, 4000])
+def open_capture(url=RTSP_URL):
+    return cv2.VideoCapture(url,cv2.CAP_FFMPEG,
+        [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC,4000,cv2.CAP_PROP_READ_TIMEOUT_MSEC,4000])
 
 
 def main():
+    from services.cv_detector.multicamera import Hub,SharedInference,capture_camera,context_loop
+    from services.cv_detector.control_room import create_app
+    from common.line import CAMERAS
+    cv2.setNumThreads(1)
+    client=None
+    hub=Hub(lambda topic,payload:publish(client,topic,payload))
+    client=start_client('cv-detector',hub.receive,'factory/line1/#')
+    inference=SharedInference(hub)
     start_http_server(9104)
-    mqtt = start_client("cv-detector")
-    yolo = Worker(lambda topic, payload: publish(mqtt, topic, payload))
-    preview = Preview(enabled=flag("ENABLE_ANNOTATED_STREAM"))
-    Gauge("cv_annotated_enabled", "Annotated HTTP preview configured on").set(preview.enabled)
-    yolo.start()
-    preview.start()
-    previous = None
-    last_publish = 0.0
+    inference.start()
+    threads=[threading.Thread(target=capture_camera,args=(hub,inference,c),name='capture-'+c,daemon=True) for c in CAMERAS]
+    threads.append(threading.Thread(target=context_loop,args=(hub,),name='vision-context',daemon=True))
+    server=uvicorn.Server(uvicorn.Config(create_app(hub),host='0.0.0.0',port=8083,log_level='warning'))
+    threads.append(threading.Thread(target=server.run,name='control-room',daemon=True))
+    for thread in threads:
+        thread.start()
     try:
-        while not STOP.is_set():
-            capture = open_capture()
-            try:
-                while not STOP.is_set():
-                    ok, frame = capture.read()
-                    if not ok:
-                        yolo.invalidate()
-                        preview.invalidate()
-                        UP.set(0)
-                        ANOMALY.set(1)
-                        LOG.warning("RTSP unavailable; retrying target=%s", RTSP_URL)
-                        publish(mqtt, "factory/line1/cv/anomaly", {"timestamp": time.time(),
-                            "anomaly": True, "reasons": ["stream-unavailable"]})
-                        break
-                    UP.set(1)
-                    now = time.time()
-                    UPDATED.set(now)
-                    values, reasons = analyze(frame)
-                    for name, value in values.items():
-                        METRICS[name].set(value)
-                    ANOMALY.set(bool(reasons))
-                    yolo.submit(frame, now)
-                    yolo.snapshot()  # Expire results even when annotation is disabled.
-                    preview.update(frame, reasons, yolo)
-                    if reasons != previous:
-                        LOG.info("CV state reasons=%s metrics=%s", reasons, values)
-                    if reasons != previous or time.monotonic() - last_publish >= 5:
-                        publish(mqtt, "factory/line1/cv/anomaly", {"timestamp": time.time(),
-                            "anomaly": bool(reasons), "reasons": reasons, "metrics": values})
-                        last_publish = time.monotonic()
-                    previous = reasons
-            except Exception:
-                yolo.invalidate()
-                preview.invalidate()
-                UP.set(0)
-                ANOMALY.set(1)
-                LOG.exception("CV processing failed; reconnecting")
-            finally:
-                capture.release()
-            STOP.wait(2)
+        while not STOP.wait(1):
+            hub.maintain()
     finally:
-        yolo.close()
-        preview.close()
-        close(mqtt)
+        hub.stop.set()
+        server.should_exit=True
+        inference.close()
+        for thread in threads:
+            thread.join(timeout=5)
+        close(client)
 
 
-if __name__ == "__main__":
+if __name__=='__main__':
     setup()
     main()

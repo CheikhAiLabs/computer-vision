@@ -1,7 +1,7 @@
 """Deterministic process simulation, separate from protocols for testing."""
 import math
 
-SCENARIOS = {"normal", "jam", "overheat", "vibration", "quality-drop", "stopped"}
+SCENARIOS = {"normal", "jam", "overheat", "vibration", "quality-drop", "stopped", "count-mismatch"}
 
 
 def sample(tick: int, scenario: str, count: int) -> dict:

@@ -20,7 +20,10 @@ REQUIRED = ['docker-compose.yml','Dockerfile.cv','requirements-cv.txt','tools/yo
     'services/incident_receiver/static/vendor/swagger-ui/swagger-ui-bundle.js',
     'services/incident_receiver/static/vendor/swagger-ui/swagger-ui.css',
     'services/incident_receiver/static/vendor/swagger-ui/LICENSE',
-    'scripts/incident_integration_test.py','docs/INCIDENT_VALIDATION.md']
+    'scripts/incident_integration_test.py','docs/INCIDENT_VALIDATION.md',
+    'services/cv_detector/tracking.py','services/cv_detector/analytics.py',
+    'services/cv_detector/templates/control_room.html','services/cv_detector/static/control_room.js',
+    'scripts/vision_integration_test.py','tools/vision_events_test.py','tests/test_multicamera.py']
 SERVICES = {'mqtt','opcua-sim','mediamtx','camera-sim','telemetry-bridge','cv-detector',
     'ml-anomaly','incident-receiver','prometheus','blackbox-exporter','alertmanager',
     'loki','alloy','grafana','tools','incident-db'}

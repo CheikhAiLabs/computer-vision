@@ -11,4 +11,11 @@ webrtc: no
 srt: no
 paths:
   line1:
+    source: rtsp://127.0.0.1:8554/line1-process
+    rtspTransport: tcp
+  line1-entry:
+    source: publisher
+  line1-process:
+    source: publisher
+  line1-exit:
     source: publisher

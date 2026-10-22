@@ -1,6 +1,8 @@
 # Capture the production jam demo
 
-This directory is reserved for real screenshots. No captures are included yet.
+This directory contains real screenshots. `control-room.png` is an actual local
+Chrome capture of the three-camera Control Room in the `object-mix` scenario,
+recorded on 2026-10-22. The original three-image jam gallery is still pending.
 The helper prepares the running platform; take the screenshots with your browser
 or operating system's capture tool.
 

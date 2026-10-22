@@ -12,7 +12,8 @@ from services.incident_receiver.models import utc, utcnow
 
 LOG = logging.getLogger(__name__)
 TOPICS = {'telemetry':'PLC','cv/anomaly':'OpenCV','cv/detections':'YOLO',
-          'cv/safety':'Safety','ml/anomaly':'ML'}
+          'cv/safety':'Safety','ml/anomaly':'ML','vision/events':'VisionEvents',
+          'vision/counts':'VisionCounts','vision/safety':'VisionSafety','vision/quality':'VisionQuality'}
 MONITORING_QUERY = '{__name__=~"probe_success|up|bridge_opcua_connected|cv_stream_up|camera_publisher_up"}'
 
 
