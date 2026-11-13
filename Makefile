@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := help
 SCENARIOS := normal object-mix person-zone fallen-object crowded-line stalled-product wrong-direction misaligned-product count-mismatch jam overheat vibration quality-drop stopped dirty-camera dark-camera blur-camera camera-offline camera-online opcua-down opcua-up edge-ot-cut edge-ot-restore cv-ot-cut cv-ot-restore state
-.PHONY: help build up down restart ps logs smoke clean validate test integration incident-test incident-db-test yolo-test vision-test vision-events $(SCENARIOS)
+.PHONY: help build up down restart ps logs smoke clean validate test integration incident-test incident-db-test yolo-test vision-test vision-events scenarios $(SCENARIOS)
 help:
-	@echo "Targets: build up down restart ps logs smoke validate test integration incident-test incident-db-test yolo-test vision-test vision-events clean"
+	@echo "Targets: build up down restart ps logs smoke validate test integration incident-test incident-db-test yolo-test vision-test vision-events scenarios clean"
 	@echo "Scenarios: $(SCENARIOS)"
 	@echo "clean removes this project's volumes and all stored lab data."
 build:
@@ -23,7 +23,7 @@ validate:
 	docker compose config --quiet
 	docker compose --profile tools run --rm -v "$(CURDIR):/workspace:ro" tools python /workspace/scripts/validate.py
 test:
-	docker compose --profile tools run --rm -v "$(CURDIR)/tests:/tests:ro" tools python -m unittest discover -s /tests -v
+	docker compose --profile tools run --rm -v "$(CURDIR)/tests:/tests:ro" -v "$(CURDIR)/scripts:/app/scripts:ro" tools python -m unittest discover -s /tests -v
 yolo-test:
 	docker compose exec cv-detector python /tools/yolo_test.py
 incident-test:
@@ -36,6 +36,8 @@ incident-db-test:
 	docker compose --profile tools run --rm --no-deps -e INCIDENT_TEST_POSTGRES=true -v "$(CURDIR)/tests:/tests:ro" tools python -m unittest discover -s /tests -p test_incidents.py -v
 integration:
 	python3 scripts/integration_test.py
+scenarios:
+	python3 -m scripts.run_scenarios
 clean:
 	docker compose down -v
 $(SCENARIOS):

@@ -953,11 +953,59 @@ make smoke
 | `make test` | Offline unit tests without model downloads |
 | `make yolo-test` | Actual local CPU model inference on a licensed scene |
 | `make smoke` | All services, three raw/annotated cameras, counts, APIs, monitoring and logs; expects normal |
+| `make scenarios` | Every manual scenario in sequence, measured effects/alerts, explicit outage recovery and `normal` between scenarios and at the end |
 | `make vision-test` | Actual multi-camera scenarios → derived signals → alerts/incidents → normal recovery |
 | `make vision-events` | Observe all four real vision MQTT channels; run in a second terminal during `make vision-test` |
 | `make integration` | Existing process, video, MQTT and OT-network failure/recovery suite |
 | `make incident-test` | Actual incident correlation, lifecycle, reports and restart-persistence scenarios |
 | `make incident-db-test` | Isolated real PostgreSQL test schema, cleaned up afterward |
+
+### Run every scenario in sequence
+
+With Docker and the complete stack running (`make up`), run from the repository root:
+
+```bash
+make scenarios
+```
+
+This runs all 20 scenarios from the table below, in order, using the same controller
+as the individual Make commands:
+
+```text
+normal → object-mix → normal → person-zone → normal → … → blur-camera → normal
+       → camera-offline → camera-online → normal
+       → opcua-down → opcua-up → normal
+       → edge-ot-cut → edge-ot-restore → normal
+       → cv-ot-cut → cv-ot-restore → normal → state → normal
+```
+
+Each scenario stays active for at least 15 seconds and until its checks pass.
+The runner checks actual detections, OpenCV markers, process metrics and tracked
+signals; applicable alerts must fire in Prometheus and reach the incident portal.
+`stalled-product` checks both stall and dwell alerts; `count-mismatch` also waits
+for measured missing-exit detection. Product mix, crowding and planned stop have
+their own checks without requiring a dedicated alert.
+
+Between scenarios it restores `normal` and waits for all three cameras, tracking,
+PLC/telemetry and count reconciliation to recover, and for Prometheus and incident
+source alerts to clear. Outages also execute and verify their matching restoration
+command before `normal`. A final `state` prints the simulator state, followed by
+another verified `normal`. History and lifetime vision counters are retained.
+
+Allow roughly 15–30 minutes with default settings; slower machines may take longer.
+Python 3, enabled/ready YOLO, Prometheus and the incident portal are required.
+A missing effect or recovery fails the command with a nonzero exit code; remaining
+scenarios are not run. On failure, Ctrl+C or SIGTERM, it still attempts a verified
+`normal` restoration. If recovery itself fails, fix the reported dependency and
+run `make normal`. Run this sequence on its own, without concurrent scenario changes.
+
+To inspect the full sequence without changing anything, or adjust the maximum
+wait per check and minimum observation time (seconds):
+
+```bash
+python3 -m scripts.run_scenarios --list
+python3 -m scripts.run_scenarios --timeout 240 --observe-seconds 30
+```
 
 ### Manual scenarios
 
